@@ -35,6 +35,7 @@
 
   <modules>
     <module>hprof-heap</module>
+    <module>hprof-oql-engine</module>
   </modules>
 
   <licenses>
@@ -64,6 +65,16 @@
     <dependencies>
 
       <!-- Local modules -->
+      <dependency>
+        <groupId>org.gridkit.jvmtool</groupId>
+        <artifactId>hprof-heap</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.gridkit.jvmtool</groupId>
+        <artifactId>hprof-oql-engine</artifactId>
+        <version>${project.version}</version>
+      </dependency>
 
       <!-- JVM tooling -->
       <dependency>
