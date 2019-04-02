@@ -1,58 +1,32 @@
 /*
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Copyright 1997-2012 Oracle and/or its affiliates. All rights reserved.
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Oracle and Java are registered trademarks of Oracle and/or its affiliates.
- * Other names may be trademarks of their respective owners.
- *
- * The contents of this file are subject to the terms of either the GNU
- * General Public License Version 2 only ("GPL") or the Common
- * Development and Distribution License("CDDL") (collectively, the
- * "License"). You may not use this file except in compliance with the
- * License. You can obtain a copy of the License at
- * http://www.netbeans.org/cddl-gplv2.html
- * or nbbuild/licenses/CDDL-GPL-2-CP. See the License for the
- * specific language governing permissions and limitations under the
- * License.  When distributing the software, include this License Header
- * Notice in each file and include the License file at
- * nbbuild/licenses/CDDL-GPL-2-CP.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the GPL Version 2 section of the License file that
- * accompanied this code. If applicable, add the following below the
- * License Header, with the fields enclosed by brackets [] replaced by
- * your own identifying information:
- * "Portions Copyrighted [year] [name of copyright owner]"
- *
- * Contributor(s):
- * The Original Software is NetBeans. The Initial Developer of the Original
- * Software is Sun Microsystems, Inc. Portions Copyright 1997-2006 Sun
- * Microsystems, Inc. All Rights Reserved.
- *
- * If you wish your version of this file to be governed by only the CDDL
- * or only the GPL Version 2, indicate your decision by adding
- * "[Contributor] elects to include this software in this distribution
- * under the [CDDL or GPL Version 2] license." If you do not indicate a
- * single choice of license, a recipient has the option to distribute
- * your version of this file under either the CDDL, the GPL Version 2 or
- * to extend the choice of license to its licensees as provided above.
- * However, if you add GPL Version 2 code and therefore, elected the GPL
- * Version 2 license, then the option applies only if the new code is
- * made subject to such option by the copyright holder.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 
 package org.netbeans.lib.profiler.heap;
 
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.TreeMap;
 
 /**
@@ -62,37 +36,40 @@ import java.util.TreeMap;
 @SuppressWarnings({"unused", "rawtypes", "unchecked"})
 class DominatorTree {
     //~ Static fields/initializers -----------------------------------------------------------------------------------------------
-
+    
     private static final int BUFFER_SIZE = (64 * 1024) / 8;
     private static final int ADDITIONAL_IDS_THRESHOLD = 30;
-
+    private static final int ADDITIONAL_IDS_THRESHOLD_DIRTYSET_SAME_SIZE = 5;
+    
     //~ Instance fields ----------------------------------------------------------------------------------------------------------
-
+    
     private HprofHeap heap;
     private LongBuffer multipleParents;
     private LongBuffer revertedMultipleParents;
     private LongBuffer currentMultipleParents;
-    private Map<Long,Long> map;
-    private Set dirtySet = Collections.EMPTY_SET;
+    private LongHashMap map;
+    private LongSet dirtySet;
+    private int dirtySetSameSize;
     private Map canContainItself;
     private Map nearestGCRootCache = new NearestGCRootCache(400000);
 
     //~ Constructors -------------------------------------------------------------------------------------------------------------
-
+    
     DominatorTree(HprofHeap h, LongBuffer multiParents) {
         heap = h;
         multipleParents = multiParents;
         currentMultipleParents = multipleParents;
-        map = new HashMap(multiParents.getSize());
+        map = new LongHashMap(multiParents.getSize());
+        dirtySet = new LongSet();
         try {
             revertedMultipleParents = multiParents.revertBuffer();
         } catch (IOException ex) {
             throw new IllegalArgumentException(ex.getLocalizedMessage(),ex);
         }
     }
-
-    //~ Methods ------------------------------------------------------------------------------------------------------------------
-
+    
+    //~ Methods ------------------------------------------------------------------------------------------------------------------    
+    
     synchronized void computeDominators() {
         boolean changed = true;
         boolean igonoreDirty;
@@ -107,16 +84,15 @@ class DominatorTree {
             ex.printStackTrace();
         }
         deleteBuffers();
-        dirtySet = Collections.EMPTY_SET;
+        dirtySet = new LongSet();
     }
-
-
+    
     private boolean computeOneLevel(boolean ignoreDirty) throws IOException {
         boolean changed = false;
-        Set newDirtySet = new HashSet(map.size()/10);
+        LongSet newDirtySet = new LongSet(map.size()/10);
         List<Long> additionalIds = new ArrayList();
         int additionalIndex = 0;
-        // debug
+        // debug 
 //        long processedId = 0;
 //        long changedId = 0;
 //        long index = 0;
@@ -138,37 +114,35 @@ class DominatorTree {
                 }
                 instanceId = additionalIds.get(additionalIndex++).longValue();
             }
-            Long instanceIdObj = new Long(instanceId);
-            Long oldIdomObj = (Long) map.get(instanceIdObj);
+            long oldIdom = map.get(instanceId);
 //index++;
-            if (oldIdomObj == null || (oldIdomObj.longValue() != 0 && (ignoreDirty || dirtySet.contains(oldIdomObj) || dirtySet.contains(instanceIdObj)))) {
+            if (oldIdom == -1 || (oldIdom > 0 && (ignoreDirty || dirtySet.contains(oldIdom) || dirtySet.contains(instanceId)))) {            
 //processedId++;
                 LongMap.Entry entry = heap.idToOffsetMap.get(instanceId);
-                List refs = entry.getReferences();
-                Iterator refIt = refs.iterator();
-                Long newIdomIdObj = (Long)refIt.next();
+                LongIterator refIt = entry.getReferences();
+                long newIdomId = refIt.next();
                 boolean dirty = false;
-
-                while(refIt.hasNext() && newIdomIdObj.longValue() != 0) {
-                    Long refIdObj = (Long)refIt.next();
-                    newIdomIdObj = intersect(newIdomIdObj,refIdObj);
+                
+                while(refIt.hasNext() && newIdomId != 0) {
+                    long refIdObj = refIt.next();
+                    newIdomId = intersect(newIdomId, refIdObj);
                 }
-                if (oldIdomObj == null) {
-//addedBynewDirtySet.add((newDirtySet.contains(oldIdomObj) || newDirtySet.contains(instanceIdObj)) && !(dirtySet.contains(oldIdomObj) || dirtySet.contains(instanceIdObj)));
-                    map.put(instanceIdObj, newIdomIdObj);
-                    newDirtySet.add(newIdomIdObj);
+                if (oldIdom == -1) {
+//addedBynewDirtySet.add(newDirtySet.contains(instanceId) && !dirtySet.contains(instanceId));
+                    map.put(instanceId, newIdomId);
+                    if (newIdomId != 0) newDirtySet.add(newIdomId);
                     changed = true;
 //changedId++;
 //changedIds.add(instanceIdObj);
 //changedIdx.add(index);
 //oldDomIds.add(null);
 //newDomIds.add(newIdomIdObj);
-                } else if (oldIdomObj.longValue() != newIdomIdObj.longValue()) {
-//addedBynewDirtySet.add((newDirtySet.contains(oldIdomObj) || newDirtySet.contains(instanceIdObj)) && !(dirtySet.contains(oldIdomObj) || dirtySet.contains(instanceIdObj)));
-                    newDirtySet.add(oldIdomObj);
-                    newDirtySet.add(newIdomIdObj);
-                    map.put(instanceIdObj,newIdomIdObj);
-                    if (dirtySet.size() < ADDITIONAL_IDS_THRESHOLD) {
+                } else if (oldIdom != newIdomId) {
+//addedBynewDirtySet.add((newDirtySet.contains(oldIdom) || newDirtySet.contains(instanceId)) && !(dirtySet.contains(oldIdom) || dirtySet.contains(instanceId)));
+                    newDirtySet.add(oldIdom);
+                    if (newIdomId != 0) newDirtySet.add(newIdomId);
+                    map.put(instanceId,newIdomId);
+                    if (dirtySet.size() < ADDITIONAL_IDS_THRESHOLD || dirtySetSameSize >= ADDITIONAL_IDS_THRESHOLD_DIRTYSET_SAME_SIZE) {
                         updateAdditionalIds(instanceId, additionalIds);
                     }
                     changed = true;
@@ -180,6 +154,11 @@ class DominatorTree {
                 }
             }
         }
+        if (dirtySet.size() != newDirtySet.size()) {
+            dirtySetSameSize = 0;
+        } else {
+            dirtySetSameSize++;
+        }
         dirtySet = newDirtySet;
 //System.out.println("Processed: "+processedId);
 //System.out.println("Changed:   "+changedId);
@@ -188,7 +167,7 @@ class DominatorTree {
 //System.out.println("-------------------");
         return changed;
     }
-
+        
     private void updateAdditionalIds(final long instanceId, final List<Long> additionalIds) {
         Instance i = heap.getInstanceByID(instanceId);
 //System.out.println("Inspecting "+printInstance(instanceIdObj));
@@ -199,8 +178,8 @@ class DominatorTree {
                     if (val != null) {
                         long idp = val.getInstanceId();
                         Long idO = new Long(idp);
-                        Long idomO = map.get(idO);
-                        if (idomO != null && idomO.longValue() != 0) {
+                        long idomO = map.get(idp);
+                        if (idomO > 0) {
                             additionalIds.add(idO);
 //System.out.println("  Adding "+printInstance(idO));
                         }
@@ -209,35 +188,35 @@ class DominatorTree {
             }
         }
     }
-
+    
     private void deleteBuffers() {
         multipleParents.delete();
         revertedMultipleParents.delete();
     }
-
+        
     private long readLong() throws IOException {
         return currentMultipleParents.readLong();
     }
-
+    
     long getIdomId(long instanceId, LongMap.Entry entry) {
-        Long idomEntry = (Long) map.get(new Long(instanceId));
-        if (idomEntry != null) {
-            return idomEntry.longValue();
+        long idomEntry = map.get(instanceId);
+        if (idomEntry != -1) {
+            return idomEntry;
         }
         if (entry == null) {
             entry = heap.idToOffsetMap.get(instanceId);
         }
         return entry.getNearestGCRootPointer();
     }
-
+    
     boolean hasInstanceInChain(int tag, Instance i) {
         ClassDump javaClass;
         long idom;
         long instanceId;
-
+        
         if (tag == HprofHeap.PRIMITIVE_ARRAY_DUMP) {
             return false;
-        }
+        }        
         javaClass = (ClassDump) i.getJavaClass();
         if (canContainItself == null) {
             canContainItself = new HashMap(heap.getAllClasses().size()/2);
@@ -258,7 +237,7 @@ class DominatorTree {
         for (;idom!=0;idom=getIdomId(idom)) {
             Instance ip = heap.getInstanceByID(idom);
             JavaClass cls = ip.getJavaClass();
-
+            
             if (javaClass.equals(cls)) {
                 return true;
             }
@@ -278,45 +257,50 @@ class DominatorTree {
         nearestGCRootCache.put(instanceIdLong,nearestGC);
         return nearestGC;
     }
-
-    private Long getIdomId(Long instanceIdLong) {
-        Long idomObj = (Long) map.get(instanceIdLong);
-
-        if (idomObj != null) {
-            return idomObj;
+    
+    private long getIdomId(long instanceIdLong) {
+        long idom = map.get(instanceIdLong);
+        
+        if (idom != -1) {
+            return idom;
         }
         return getNearestGCRootPointer(instanceIdLong);
     }
-
-    private Long intersect(Long idomIdObj, Long refIdObj) {
-        if (idomIdObj.longValue() == refIdObj.longValue()) {
-            return idomIdObj;
+    
+    private long intersect(long idomId, long refId) {
+        if (idomId == refId) {
+            return idomId;
         }
-        if (idomIdObj.longValue() == 0 || refIdObj.longValue() == 0) {
-            return Long.valueOf(0);
+        if (idomId == 0 || refId == 0) {
+            return 0;
         }
-        Set leftIdoms = new HashSet(200);
-        Set rightIdoms = new HashSet(200);
-        Long leftIdomObj = idomIdObj;
-        Long rightIdomObj = refIdObj;
+        LongSet leftIdoms = new LongSet(200);
+        LongSet rightIdoms = new LongSet(200);        
+        long leftIdom = idomId;
+        long rightIdom = refId;
 
-
-        leftIdoms.add(leftIdomObj);
-        rightIdoms.add(rightIdomObj);
+        
+        leftIdoms.add(leftIdom);
+        rightIdoms.add(rightIdom);
         while(true) {
-            if (leftIdomObj.longValue() != 0) {
-                leftIdomObj = getIdomId(leftIdomObj);
-                if (rightIdoms.contains(leftIdomObj)) {
-                    return leftIdomObj;
+            if (rightIdom == 0 && leftIdom == 0) return 0;
+            if (leftIdom != 0) {
+                leftIdom = getIdomId(leftIdom);
+                if (leftIdom != 0) {
+                    if (rightIdoms.contains(leftIdom)) {
+                        return leftIdom;
+                    }
+                    leftIdoms.add(leftIdom);
                 }
-                leftIdoms.add(leftIdomObj);
             }
-            if (rightIdomObj.longValue() != 0) {
-                rightIdomObj = getIdomId(rightIdomObj);
-                if (leftIdoms.contains(rightIdomObj)) {
-                    return rightIdomObj;
+            if (rightIdom != 0) {
+                rightIdom = getIdomId(rightIdom);
+                if (rightIdom != 0) {
+                    if (leftIdoms.contains(rightIdom)) {
+                        return rightIdom;
+                    }
+                    rightIdoms.add(rightIdom);
                 }
-                rightIdoms.add(rightIdomObj);
             }
         }
     }
@@ -329,11 +313,11 @@ class DominatorTree {
         }
     }
 
-    // debugging
+    // debugging 
     private void printObjs(List<Long> changedIds, List<Long> oldDomIds, List<Long> newDomIds, List<Boolean> addedByDirtySet, List<Long> changedIdx) {
         if (changedIds.size()>20) return;
         TreeMap<Integer,String> m = new TreeMap();
-
+        
         for (int i=0; i<changedIds.size(); i++) {
             Long iid = changedIds.get(i);
             Long oldDom = oldDomIds.get(i);
@@ -343,7 +327,7 @@ class DominatorTree {
             Instance ii = heap.getInstanceByID(iid.longValue());
             int number = ii.getInstanceNumber();
             String text = "Index: "+index+(addedByDirt?" New ":" Old ")+printInstance(iid);
-
+            
             text+=" OldDom "+printInstance(oldDom);
             text+=" NewDom: "+printInstance(newDom);
             m.put(number,text);
@@ -352,7 +336,7 @@ class DominatorTree {
             System.out.println(m.get(in));
         }
     }
-
+    
     // debugging
     String printInstance(Long instanceid) {
         if (instanceid == null || instanceid.longValue() == 0) {
@@ -360,13 +344,22 @@ class DominatorTree {
         }
         Instance ii = heap.getInstanceByID(instanceid.longValue());
         return ii.getJavaClass().getName()+"#"+ii.getInstanceNumber();
-
+        
     }
 
-    @SuppressWarnings("serial")
+    //---- Serialization support
+    void writeToStream(DataOutputStream out) throws IOException {
+        map.writeToStream(out);
+    }
+
+    DominatorTree(HprofHeap h, DataInputStream dis) throws IOException {
+        heap = h;
+        map = new LongHashMap(dis);
+    }
+    
     private static final class NearestGCRootCache extends LinkedHashMap {
         private final int maxSize;
-
+        
         private NearestGCRootCache(int size) {
             super(size,0.75F,true);
             maxSize = size;

@@ -1,48 +1,27 @@
 /*
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Copyright 1997-2012 Oracle and/or its affiliates. All rights reserved.
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Oracle and Java are registered trademarks of Oracle and/or its affiliates.
- * Other names may be trademarks of their respective owners.
- *
- * The contents of this file are subject to the terms of either the GNU
- * General Public License Version 2 only ("GPL") or the Common
- * Development and Distribution License("CDDL") (collectively, the
- * "License"). You may not use this file except in compliance with the
- * License. You can obtain a copy of the License at
- * http://www.netbeans.org/cddl-gplv2.html
- * or nbbuild/licenses/CDDL-GPL-2-CP. See the License for the
- * specific language governing permissions and limitations under the
- * License.  When distributing the software, include this License Header
- * Notice in each file and include the License file at
- * nbbuild/licenses/CDDL-GPL-2-CP.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the GPL Version 2 section of the License file that
- * accompanied this code. If applicable, add the following below the
- * License Header, with the fields enclosed by brackets [] replaced by
- * your own identifying information:
- * "Portions Copyrighted [year] [name of copyright owner]"
- *
- * Contributor(s):
- * The Original Software is NetBeans. The Initial Developer of the Original
- * Software is Sun Microsystems, Inc. Portions Copyright 1997-2006 Sun
- * Microsystems, Inc. All Rights Reserved.
- *
- * If you wish your version of this file to be governed by only the CDDL
- * or only the GPL Version 2, indicate your decision by adding
- * "[Contributor] elects to include this software in this distribution
- * under the [CDDL or GPL Version 2] license." If you do not indicate a
- * single choice of license, a recipient has the option to distribute
- * your version of this file under either the CDDL, the GPL Version 2 or
- * to extend the choice of license to its licensees as provided above.
- * However, if you add GPL Version 2 code and therefore, elected the GPL
- * Version 2 license, then the option applies only if the new code is
- * made subject to such option by the copyright holder.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 
 package org.netbeans.lib.profiler.heap;
 
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -52,6 +31,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Set;
 
 
@@ -61,13 +41,13 @@ import java.util.Set;
  */
 class ClassDump extends HprofObject implements JavaClass {
     //~ Static fields/initializers -----------------------------------------------------------------------------------------------
-
+    
     private static final boolean DEBUG = false;
-    private static final Set<String> CANNOT_CONTAIN_ITSELF = new HashSet<String>(Arrays.asList(new String[] {
+    private static final Set CANNOT_CONTAIN_ITSELF = new HashSet(Arrays.asList(new String[] {
         "java.lang.String",         // NOI18N
         "java.lang.StringBuffer",   // NOI18N
         "java.lang.StringBuilder",  // NOI18N
-        "java.io.File"              // NOI18N
+        "java.io.File"              // NOI18N   
         }));
 
     //~ Instance fields ----------------------------------------------------------------------------------------------------------
@@ -119,9 +99,9 @@ class ClassDump extends HprofObject implements JavaClass {
     }
 
     public List<Field> getFields() {
-        List<Field> filedsList = classDumpSegment.fieldsCache.get(this);
+        List filedsList = (List) classDumpSegment.fieldsCache.get(this);
         if (filedsList == null) {
-            filedsList = computeFields();
+            filedsList = Collections.unmodifiableList(computeFields());
             classDumpSegment.fieldsCache.put(this,filedsList);
         }
         return filedsList;
@@ -132,8 +112,11 @@ class ClassDump extends HprofObject implements JavaClass {
             return -1;
         }
 
-        return classDumpSegment.getMinimumInstanceSize()
-               + getHprofBuffer().getInt(fileOffset + classDumpSegment.instanceSizeOffset);
+        int size = getRawInstanceSize();
+        if (!classDumpSegment.newSize) {
+            size += classDumpSegment.getMinimumInstanceSize();
+        }
+        return size;
     }
 
     public long getRetainedSizeByClass() {
@@ -155,7 +138,7 @@ class ClassDump extends HprofObject implements JavaClass {
 //        HprofHeap heap = getHprof();
 //        HprofByteBuffer dumpBuffer = getHprofBuffer();
 //        int idSize = dumpBuffer.getIDSize();
-//        List<Instance> instancesList = new ArrayList<Instance>(instancesCount);
+//        List instancesList = new ArrayList(instancesCount);
 //        TagBounds allInstanceDumpBounds = heap.getAllInstanceDumpBounds();
 //        long[] offset = new long[] { firstInstanceOffset };
 //
@@ -203,6 +186,14 @@ class ClassDump extends HprofObject implements JavaClass {
 //        }
 //
 //        return instancesList;
+    }
+
+    public Iterator<Instance> getInstancesIterator() {
+        int instancesCount = getInstancesCount();
+        if (instancesCount == 0) {
+            return Collections.EMPTY_LIST.iterator();
+        }
+        return new InstancesIterator(instancesCount);
     }
 
     public int getInstancesCount() {
@@ -314,7 +305,7 @@ class ClassDump extends HprofObject implements JavaClass {
         }
         if (addClassLoader) {
             long classLoaderOffset = fileOffset + classDumpSegment.classLoaderIDOffset;
-
+            
             filedsList.add(new ClassLoaderFieldValue(this, classLoaderOffset));
         }
         return filedsList;
@@ -349,6 +340,10 @@ class ClassDump extends HprofObject implements JavaClass {
         }
 
         return (int) (cpOffset - (fileOffset + classDumpSegment.constantPoolSizeOffset));
+    }
+
+    int getRawInstanceSize() {
+        return getHprofBuffer().getInt(fileOffset + classDumpSegment.instanceSizeOffset);
     }
 
     HprofHeap getHprof() {
@@ -483,4 +478,65 @@ class ClassDump extends HprofObject implements JavaClass {
 
         return b;
     }
+    
+    private class InstancesIterator implements Iterator<Instance> {
+        
+        private long instancesCount;
+        private long[] offset;
+        TagBounds allInstanceDumpBounds;
+        HprofHeap heap;
+        long classId;
+        
+        InstancesIterator(long ic) {
+            instancesCount = ic;
+            allInstanceDumpBounds = getHprof().getAllInstanceDumpBounds();
+            offset = new long[] { firstInstanceOffset };
+            heap = getHprof();
+            classId = getJavaClassId();
+
+        }
+
+        
+        public boolean hasNext() {
+            if (instancesCount>0 && offset[0] < allInstanceDumpBounds.endOffset) {
+                return true;
+            }
+            return false;
+        }
+
+        public Instance next() {
+            while (hasNext()) {
+                Instance i = heap.getInstanceByOffset(offset, ClassDump.this, classId);
+                if (i != null) {
+                    instancesCount--;
+                    return i;
+                }
+            }
+            throw new NoSuchElementException();
+        }
+
+
+		@Override
+		public void remove() {
+			throw new UnsupportedOperationException();			
+		}
+    }
+
+    //---- Serialization support
+    void writeToStream(DataOutputStream out) throws IOException {
+        out.writeLong(fileOffset);
+        out.writeInt(instances);
+        out.writeLong(firstInstanceOffset);
+        out.writeLong(loadClassOffset);
+        out.writeLong(retainedSizeByClass);        
+    }
+
+    ClassDump(ClassDumpSegment segment, long offset, DataInputStream dis) throws IOException {
+        this(segment, offset);
+        instances = dis.readInt();
+        firstInstanceOffset = dis.readLong();
+        loadClassOffset = dis.readLong();
+        retainedSizeByClass = dis.readLong();        
+    }
+
 }

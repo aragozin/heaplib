@@ -42,7 +42,7 @@ public class FastHprofHeap extends HprofHeap {
      * Please use {@link HeapFactory}
      */
     protected FastHprofHeap(File dumpFile, int seg) throws FileNotFoundException, IOException {
-        super(dumpFile, seg);
+        super(dumpFile, seg, new NullCacheDirectory());
         classes = new HashMap<Long, ClassEntry>();
         offsetMap = new HeapOffsetMap(this);
     }

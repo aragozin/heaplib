@@ -2,6 +2,7 @@ package org.gridkit.jvmtool.heapdump;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 
 import org.netbeans.lib.profiler.heap.Field;
@@ -84,5 +85,10 @@ public class MissingInstanceType implements JavaClass {
 	@Override
 	public JavaClass getSuperClass() {
 		return null;
+	}
+
+	@Override
+	public Iterator<Instance> getInstancesIterator() {
+		return getInstances().iterator();
 	}
 }

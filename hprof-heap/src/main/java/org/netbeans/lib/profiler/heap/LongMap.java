@@ -1,53 +1,29 @@
 /*
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Copyright 1997-2010 Oracle and/or its affiliates. All rights reserved.
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Oracle and Java are registered trademarks of Oracle and/or its affiliates.
- * Other names may be trademarks of their respective owners.
- *
- * The contents of this file are subject to the terms of either the GNU
- * General Public License Version 2 only ("GPL") or the Common
- * Development and Distribution License("CDDL") (collectively, the
- * "License"). You may not use this file except in compliance with the
- * License. You can obtain a copy of the License at
- * http://www.netbeans.org/cddl-gplv2.html
- * or nbbuild/licenses/CDDL-GPL-2-CP. See the License for the
- * specific language governing permissions and limitations under the
- * License.  When distributing the software, include this License Header
- * Notice in each file and include the License file at
- * nbbuild/licenses/CDDL-GPL-2-CP.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the GPL Version 2 section of the License file that
- * accompanied this code. If applicable, add the following below the
- * License Header, with the fields enclosed by brackets [] replaced by
- * your own identifying information:
- * "Portions Copyrighted [year] [name of copyright owner]"
- *
- * Contributor(s):
- * The Original Software is NetBeans. The Initial Developer of the Original
- * Software is Sun Microsystems, Inc. Portions Copyright 1997-2006 Sun
- * Microsystems, Inc. All Rights Reserved.
- *
- * If you wish your version of this file to be governed by only the CDDL
- * or only the GPL Version 2, indicate your decision by adding
- * "[Contributor] elects to include this software in this distribution
- * under the [CDDL or GPL Version 2] license." If you do not indicate a
- * single choice of license, a recipient has the option to distribute
- * your version of this file under either the CDDL, the GPL Version 2 or
- * to extend the choice of license to its licensees as provided above.
- * However, if you add GPL Version 2 code and therefore, elected the GPL
- * Version 2 license, then the option applies only if the new code is
- * made subject to such option by the copyright holder.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 
 package org.netbeans.lib.profiler.heap;
 
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.util.Collections;
 import java.util.Iterator;
-import java.util.List;
 import java.util.SortedSet;
 import java.util.TreeSet;
 
@@ -56,11 +32,11 @@ import java.util.TreeSet;
  * value (8/4) + 4 + 1 + (8/4)
  *  - offset (long/int) to dump file
  *  - instance index (int) - unique number of this {@link Instance} among all instances of the same Java Class
- *  - references flags (byte) - bit 0 set - has zero or one reference,
+ *  - references flags (byte) - bit 0 set - has zero or one reference, 
  *                            - bit 1 set - has GC root
  *                            - bit 2 set - tree object
  *  - ID/offset (long/int) - ID if reference flag bit 0 is set, otherwise offset to reference list file
- *  - retained size (long/int)
+ *  - retained size (long/int) 
  *
  * @author Tomas Hurka
  */
@@ -71,11 +47,11 @@ class LongMap extends AbstractLongMap {
     //~ Inner Classes ------------------------------------------------------------------------------------------------------------
 
     class Entry extends AbstractLongMap.Entry {
-
+        
         private static final byte NUMBER_LIST = 1;
         private static final byte GC_ROOT = 2;
         private static final byte TREE_OBJ = 4;
-
+        
         //~ Instance fields ------------------------------------------------------------------------------------------------------
 
         private long offset;
@@ -105,7 +81,7 @@ class LongMap extends AbstractLongMap {
             byte flags = (byte)(getFlags() | TREE_OBJ);
             setFlags(flags);
         }
-
+        
         boolean isTreeObj() {
             return (getFlags() & TREE_OBJ) != 0;
         }
@@ -113,7 +89,7 @@ class LongMap extends AbstractLongMap {
         boolean hasOnlyOneReference() {
             return (getFlags() & NUMBER_LIST) == 0;
         }
-
+        
         void setNearestGCRootPointer(long instanceId) {
             byte flags = (byte)(getFlags() | GC_ROOT);
             setFlags(flags);
@@ -141,7 +117,7 @@ class LongMap extends AbstractLongMap {
             }
             return 0L;
         }
-
+        
         void addReference(long instanceId) {
             try {
                 byte flags = getFlags();
@@ -164,26 +140,26 @@ class LongMap extends AbstractLongMap {
                 ex.printStackTrace();
             }
         }
-
-        List<Long> getReferences() {
+        
+        LongIterator getReferences() {
             byte flags = getFlags();
             long ref = getReferencesPointer();
             if ((flags & NUMBER_LIST) == 0) {
                 if (ref == 0L) {
-                    return Collections.<Long>emptyList();
+                    return LongIterator.EMPTY_ITERATOR;
                 } else {
-                    return Collections.singletonList(new Long(ref));
+                    return LongIterator.singleton(ref);
                 }
             } else {
                 try {
-                    return referenceList.getNumbers(ref);
+                    return referenceList.getNumbersIterator(ref);
                 } catch (IOException ex) {
                     ex.printStackTrace();
                 }
             }
-            return Collections.<Long>emptyList();
+            return LongIterator.EMPTY_ITERATOR;
         }
-
+        
         long getOffset() {
             return getFoffset(offset + KEY_SIZE);
         }
@@ -200,7 +176,7 @@ class LongMap extends AbstractLongMap {
             if (FOFFSET_SIZE == 4) {
                 return dumpBuffer.getInt(offset + KEY_SIZE + FOFFSET_SIZE + 4 + 1 + ID_SIZE);
             }
-            return dumpBuffer.getLong(offset + KEY_SIZE + FOFFSET_SIZE + 4 + 1 + ID_SIZE);
+            return dumpBuffer.getLong(offset + KEY_SIZE + FOFFSET_SIZE + 4 + 1 + ID_SIZE);            
         }
 
         private void setReferencesPointer(long instanceId) {
@@ -223,14 +199,13 @@ class LongMap extends AbstractLongMap {
     private static class RetainedSizeEntry implements Comparable<RetainedSizeEntry> {
         private final long instanceId;
         private final long retainedSize;
-
+        
         private RetainedSizeEntry(long id,long size) {
             instanceId = id;
             retainedSize = size;
         }
 
-        public int compareTo(RetainedSizeEntry o) {
-            RetainedSizeEntry other = (RetainedSizeEntry) o;
+        public int compareTo(RetainedSizeEntry other) {
             // bigger object are at beginning
             int diff = longCompare(other.retainedSize, retainedSize);
             if (diff == 0) {
@@ -259,12 +234,12 @@ class LongMap extends AbstractLongMap {
             return hash;
         }
     }
-
+    
     //~ Constructors -------------------------------------------------------------------------------------------------------------
 
-    LongMap(int size,int idSize,int foffsetSize) throws FileNotFoundException, IOException {
-        super(size,idSize,foffsetSize,foffsetSize + 4 + 1 + idSize + foffsetSize);
-        referenceList = new NumberList(ID_SIZE);
+    LongMap(int size,int idSize,int foffsetSize,CacheDirectory cacheDir) throws FileNotFoundException, IOException {
+        super(size,idSize,foffsetSize,foffsetSize + 4 + 1 + idSize + foffsetSize, cacheDir);
+        referenceList = new NumberList(ID_SIZE, cacheDir);
     }
 
     //~ Methods ------------------------------------------------------------------------------------------------------------------
@@ -272,11 +247,11 @@ class LongMap extends AbstractLongMap {
     Entry createEntry(long index) {
         return new Entry(index);
     }
-
+    
     Entry createEntry(long index,long value) {
         return new Entry(index,value);
     }
-
+    
     Entry get(long key) {
         return (Entry)super.get(key);
     }
@@ -319,4 +294,14 @@ class LongMap extends AbstractLongMap {
         return (x < y) ? -1 : ((x == y) ? 0 : 1);
     }
 
+    //---- Serialization support    
+    void writeToStream(DataOutputStream out) throws IOException {
+        super.writeToStream(out);
+        referenceList.writeToStream(out);
+    }
+    
+    LongMap(DataInputStream dis, CacheDirectory cacheDir) throws IOException {
+        super(dis, cacheDir);
+        referenceList = new NumberList(dis, cacheDir);
+    }
 }

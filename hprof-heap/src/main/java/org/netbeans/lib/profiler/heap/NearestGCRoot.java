@@ -1,48 +1,26 @@
 /*
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Copyright 1997-2010 Oracle and/or its affiliates. All rights reserved.
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Oracle and Java are registered trademarks of Oracle and/or its affiliates.
- * Other names may be trademarks of their respective owners.
- *
- * The contents of this file are subject to the terms of either the GNU
- * General Public License Version 2 only ("GPL") or the Common
- * Development and Distribution License("CDDL") (collectively, the
- * "License"). You may not use this file except in compliance with the
- * License. You can obtain a copy of the License at
- * http://www.netbeans.org/cddl-gplv2.html
- * or nbbuild/licenses/CDDL-GPL-2-CP. See the License for the
- * specific language governing permissions and limitations under the
- * License.  When distributing the software, include this License Header
- * Notice in each file and include the License file at
- * nbbuild/licenses/CDDL-GPL-2-CP.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the GPL Version 2 section of the License file that
- * accompanied this code. If applicable, add the following below the
- * License Header, with the fields enclosed by brackets [] replaced by
- * your own identifying information:
- * "Portions Copyrighted [year] [name of copyright owner]"
- *
- * Contributor(s):
- * The Original Software is NetBeans. The Initial Developer of the Original
- * Software is Sun Microsystems, Inc. Portions Copyright 1997-2006 Sun
- * Microsystems, Inc. All Rights Reserved.
- *
- * If you wish your version of this file to be governed by only the CDDL
- * or only the GPL Version 2, indicate your decision by adding
- * "[Contributor] elects to include this software in this distribution
- * under the [CDDL or GPL Version 2] license." If you do not indicate a
- * single choice of license, a recipient has the option to distribute
- * your version of this file under either the CDDL, the GPL Version 2 or
- * to extend the choice of license to its licensees as provided above.
- * However, if you add GPL Version 2 code and therefore, elected the GPL
- * Version 2 license, then the option applies only if the new code is
- * made subject to such option by the copyright holder.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 
 package org.netbeans.lib.profiler.heap;
 
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -66,7 +44,9 @@ class NearestGCRoot {
     };
     private static final String JAVA_LANG_REF_REFERENCE = "java.lang.ref.Reference";   // NOI18N
     private static final String REFERENT_FILED_NAME = "referent"; // NOI18N
-
+    private static final String SVM_REFFERENCE = "com.oracle.svm.core.heap.heapImpl.DiscoverableReference";    // NOI18N
+    private static final String SVM_REFERENT_FILED_NAME = "rawReferent"; // NOI18N
+    
     //~ Instance fields ----------------------------------------------------------------------------------------------------------
 
     private Field referentFiled;
@@ -110,19 +90,16 @@ class NearestGCRoot {
         if (gcRootsComputed) {
             return;
         }
-        referenceClasses = new HashSet<JavaClass>();
-        for (int i=0; i<REF_CLASSES.length; i++) {
-            JavaClass ref = heap.getJavaClassByName(REF_CLASSES[i]);
-            if (ref != null) {
-                referenceClasses.add(ref);
-                referenceClasses.addAll(ref.getSubClasses());
+        HeapProgress.progressStart();
+        if (!initHotSpotReference()) {
+            if (!initSVMReference()) {
+                throw new IllegalArgumentException("reference field not found"); // NOI18N
             }
         }
-        referentFiled = computeReferentFiled();
         heap.computeReferences(); // make sure references are computed first
         allInstances = heap.getSummary().getTotalLiveInstances();
         Set<JavaClass> processedClasses = new HashSet<JavaClass>(heap.getAllClasses().size()*4/3);
-
+        
         try {
             createBuffers();
             fillZeroLevel();
@@ -137,28 +114,59 @@ class NearestGCRoot {
 
         deleteBuffers();
         heap.idToOffsetMap.flush();
-        HeapProgress.progressFinish();
         gcRootsComputed = true;
+        heap.writeToFile();
+        HeapProgress.progressFinish();
     }
 
-    private void computeOneLevel(Set<JavaClass> processedClasses) throws IOException {
+    private boolean initHotSpotReference() {
+        referentFiled = computeReferentFiled(JAVA_LANG_REF_REFERENCE, REFERENT_FILED_NAME);
+        if (referentFiled != null) {
+            referenceClasses = new HashSet();
+            for (int i=0; i<REF_CLASSES.length; i++) {
+                JavaClass ref = heap.getJavaClassByName(REF_CLASSES[i]);
+                if (ref != null) {
+                    referenceClasses.add(ref);
+                    referenceClasses.addAll(ref.getSubClasses());
+                }
+            }
+            return referenceClasses.size() >= REF_CLASSES.length;
+        }
+        return false;
+    }
+
+    private boolean initSVMReference() {
+        referentFiled = computeReferentFiled(SVM_REFFERENCE, SVM_REFERENT_FILED_NAME);
+        if (referentFiled != null) {
+            JavaClass ref = referentFiled.getDeclaringClass();
+
+            referenceClasses = new HashSet();
+            referenceClasses.add(ref);
+            referenceClasses.addAll(ref.getSubClasses());
+            return !referenceClasses.isEmpty();
+        }
+        return false;
+    }
+
+    private void computeOneLevel(Set processedClasses) throws IOException {
         int idSize = heap.dumpBuffer.getIDSize();
         for (;;) {
-            long instanceId = readLong();
             Instance instance;
-            List<FieldValue> fieldValues;
-            Iterator<FieldValue> valuesIt;
+            long instanceOffset = readLong();
+            List fieldValues;
+            Iterator valuesIt;
             boolean hasValues = false;
-
-            if (instanceId == 0L) { // end of level
+            
+            if (instanceOffset == 0L) { // end of level
                 break;
             }
             HeapProgress.progress(processedInstances++,allInstances);
-            instance = heap.getInstanceByID(instanceId);
+            instance = heap.getInstanceByOffset(new long[] {instanceOffset});
             if (instance instanceof ObjectArrayInstance) {
                 ObjectArrayDump array = (ObjectArrayDump) instance;
                 int size = array.getLength();
                 long offset = array.getOffset();
+                long instanceId = instance.getInstanceId();
 
                 for (int i=0;i<size;i++) {
                     long referenceId = heap.dumpBuffer.getID(offset + (i * idSize));
@@ -172,7 +180,7 @@ class NearestGCRoot {
                 }
                 continue;
             } else if (instance instanceof PrimitiveArrayInstance) {
-                writeLeaf(instanceId,instance.getSize());
+                writeLeaf(instance.getInstanceId(),instance.getSize());
                 continue;
             } else if (instance instanceof ClassDumpInstance) {
                 ClassDump javaClass = ((ClassDumpInstance) instance).classDump;
@@ -182,11 +190,12 @@ class NearestGCRoot {
                 fieldValues = instance.getFieldValues();
             } else {
                 if (instance == null) {
-                    System.err.println("HeapWalker Warning - null instance for " + instanceId); // NOI18N
+                    System.err.println("HeapWalker Warning - null instance for " + heap.dumpBuffer.getID(instanceOffset + 1)); // NOI18N
                     continue;
                 }
                 throw new IllegalArgumentException("Illegal type " + instance.getClass()); // NOI18N
             }
+            long instanceId = instance.getInstanceId();
             valuesIt = fieldValues.iterator();
             while (valuesIt.hasNext()) {
                 FieldValue val = (FieldValue) valuesIt.next();
@@ -197,7 +206,7 @@ class NearestGCRoot {
                         long refInstanceId;
 
                         if (val instanceof HprofFieldObjectValue) {
-                            refInstanceId = ((HprofFieldObjectValue) val).getInstanceId();
+                             refInstanceId = ((HprofFieldObjectValue) val).getInstanceId();
                         } else {
                              refInstanceId = ((HprofInstanceObjectValue) val).getInstanceId();
                         }
@@ -217,27 +226,29 @@ class NearestGCRoot {
         }
     }
 
-    private Field computeReferentFiled() {
-        JavaClass reference = heap.getJavaClassByName(JAVA_LANG_REF_REFERENCE);
-        Iterator<Field> fieldRef = reference.getFields().iterator();
+    private Field computeReferentFiled(String className, String fieldName) {
+        JavaClass reference = heap.getJavaClassByName(className);
 
-        while (fieldRef.hasNext()) {
-            Field f = (Field) fieldRef.next();
+        if (reference != null) {
+            Iterator fieldRef = reference.getFields().iterator();
 
-            if (f.getName().equals(REFERENT_FILED_NAME)) {
+            while (fieldRef.hasNext()) {
+                Field f = (Field) fieldRef.next();
 
-                return f;
+                if (f.getName().equals(fieldName)) {
+
+                    return f;
+                }
             }
         }
-
-        throw new IllegalArgumentException("reference field not found in " + reference.getName()); // NOI18N
+        return null;
     }
 
     private void createBuffers() {
-        readBuffer = new LongBuffer(BUFFER_SIZE);
-        writeBuffer = new LongBuffer(BUFFER_SIZE);
-        leaves = new LongBuffer(BUFFER_SIZE);
-        multipleParents = new LongBuffer(BUFFER_SIZE);
+        readBuffer = new LongBuffer(BUFFER_SIZE, heap.cacheDirectory);
+        writeBuffer = new LongBuffer(BUFFER_SIZE, heap.cacheDirectory);
+        leaves = new LongBuffer(BUFFER_SIZE, heap.cacheDirectory);
+        multipleParents = new LongBuffer(BUFFER_SIZE, heap.cacheDirectory);
     }
 
     private void deleteBuffers() {
@@ -246,12 +257,16 @@ class NearestGCRoot {
     }
 
     private void fillZeroLevel() throws IOException {
-        Iterator<GCRoot> gcIt = heap.getGCRoots().iterator();
+        Iterator gcIt = heap.getGCRoots().iterator();
 
         while (gcIt.hasNext()) {
             HprofGCRoot root = (HprofGCRoot) gcIt.next();
-
-            writeLong(root.getInstanceId());
+            long id = root.getInstanceId();
+            LongMap.Entry entry = heap.idToOffsetMap.get(id);
+            
+            if (entry != null) {
+                writeLong(entry.getOffset());
+            }
         }
     }
 
@@ -271,10 +286,10 @@ class NearestGCRoot {
         writeBuffer.reset();
     }
 
-    private boolean writeClassConnection(final Set<JavaClass> processedClasses, final long instanceId, final JavaClass jcls) throws IOException {
+    private boolean writeClassConnection(final Set processedClasses, final long instanceId, final JavaClass jcls) throws IOException {
         if (!processedClasses.contains(jcls)) {
             long jclsId = jcls.getJavaClassId();
-
+            
             processedClasses.add(jcls);
             if (writeConnection(instanceId, jclsId, true)) {
                 return true;
@@ -287,14 +302,14 @@ class NearestGCRoot {
                           throws IOException {
         return writeConnection(instanceId, refInstanceId, false);
     }
-
+    
     private boolean writeConnection(long instanceId, long refInstanceId, boolean addRefInstanceId)
                           throws IOException {
         if (refInstanceId != 0) {
             LongMap.Entry entry = heap.idToOffsetMap.get(refInstanceId);
 
-            if (entry != null && entry.getNearestGCRootPointer() == 0L && heap.getGCRoot(refInstanceId) == null) {
-                writeLong(refInstanceId);
+            if (entry != null && entry.getNearestGCRootPointer() == 0L && heap.gcRoots.getGCRoot(refInstanceId) == null) {
+                writeLong(entry.getOffset());
                 if (addRefInstanceId) {
                     if (!checkReferences(refInstanceId, instanceId)) {
                         entry.addReference(instanceId);
@@ -313,9 +328,9 @@ class NearestGCRoot {
     }
 
     private boolean checkReferences(final long refInstanceId, final long instanceId) {
-        Instance instance = heap.getInstanceByID(instanceId);
-        Iterator<FieldValue> fieldIt = instance.getFieldValues().iterator();
-
+        Instance instance = heap.getInstanceByID(instanceId);        
+        Iterator fieldIt = instance.getFieldValues().iterator();
+        
         while (fieldIt.hasNext()) {
             Object field = fieldIt.next();
 
@@ -330,13 +345,13 @@ class NearestGCRoot {
         return false;
     }
 
-    private void writeLong(long instanceId) throws IOException {
-        writeBuffer.writeLong(instanceId);
+    private void writeLong(long instanceOffset) throws IOException {
+        writeBuffer.writeLong(instanceOffset);
     }
 
     private void writeLeaf(long instanceId, long size) throws IOException {
         LongMap.Entry entry = heap.idToOffsetMap.get(instanceId);
-
+        
         entry.setTreeObj();
         entry.setRetainedSize(size);
 //leavesCount++;
@@ -344,7 +359,7 @@ class NearestGCRoot {
             long gcRootPointer = entry.getNearestGCRootPointer();
             if (gcRootPointer != 0) {
                 LongMap.Entry gcRootPointerEntry = heap.idToOffsetMap.get(gcRootPointer);
-
+                
                 if (gcRootPointerEntry.getRetainedSize() == 0) {
                     gcRootPointerEntry.setRetainedSize(-1);
                     leaves.writeLong(gcRootPointer);
@@ -362,9 +377,27 @@ class NearestGCRoot {
 //System.out.println("First level "+firstLevel);
         return leaves;
     }
-
+    
     LongBuffer getMultipleParents() {
         computeGCRoots();
         return multipleParents;
+    }
+
+    //---- Serialization support
+    void writeToStream(DataOutputStream out) throws IOException {
+        out.writeBoolean(gcRootsComputed);
+        if (gcRootsComputed) {
+            leaves.writeToStream(out);
+            multipleParents.writeToStream(out);
+        }
+    }
+
+    NearestGCRoot(HprofHeap h, DataInputStream dis) throws IOException {
+        this(h);
+        gcRootsComputed = dis.readBoolean();
+        if (gcRootsComputed) {
+            leaves = new LongBuffer(dis, heap.cacheDirectory);
+            multipleParents = new LongBuffer(dis, heap.cacheDirectory);
+        }
     }
 }

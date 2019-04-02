@@ -1,48 +1,27 @@
 /*
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- * Copyright 1997-2010 Oracle and/or its affiliates. All rights reserved.
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Oracle and Java are registered trademarks of Oracle and/or its affiliates.
- * Other names may be trademarks of their respective owners.
- *
- * The contents of this file are subject to the terms of either the GNU
- * General Public License Version 2 only ("GPL") or the Common
- * Development and Distribution License("CDDL") (collectively, the
- * "License"). You may not use this file except in compliance with the
- * License. You can obtain a copy of the License at
- * http://www.netbeans.org/cddl-gplv2.html
- * or nbbuild/licenses/CDDL-GPL-2-CP. See the License for the
- * specific language governing permissions and limitations under the
- * License.  When distributing the software, include this License Header
- * Notice in each file and include the License file at
- * nbbuild/licenses/CDDL-GPL-2-CP.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the GPL Version 2 section of the License file that
- * accompanied this code. If applicable, add the following below the
- * License Header, with the fields enclosed by brackets [] replaced by
- * your own identifying information:
- * "Portions Copyrighted [year] [name of copyright owner]"
- *
- * Contributor(s):
- * The Original Software is NetBeans. The Initial Developer of the Original
- * Software is Sun Microsystems, Inc. Portions Copyright 1997-2006 Sun
- * Microsystems, Inc. All Rights Reserved.
- *
- * If you wish your version of this file to be governed by only the CDDL
- * or only the GPL Version 2, indicate your decision by adding
- * "[Contributor] elects to include this software in this distribution
- * under the [CDDL or GPL Version 2] license." If you do not indicate a
- * single choice of license, a recipient has the option to distribute
- * your version of this file under either the CDDL, the GPL Version 2 or
- * to extend the choice of license to its licensees as provided above.
- * However, if you add GPL Version 2 code and therefore, elected the GPL
- * Version 2 license, then the option applies only if the new code is
- * made subject to such option by the copyright holder.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  */
 
 package org.netbeans.lib.profiler.heap;
 
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -82,6 +61,7 @@ class ClassDumpSegment extends TagBounds {
     Map<JavaClass,List<Field>> fieldsCache;
     private List<JavaClass> classes;
     private Map<Integer,JavaClass> primitiveArrayMap;
+    boolean newSize;
 
     //~ Constructors -------------------------------------------------------------------------------------------------------------
 
@@ -109,7 +89,7 @@ class ClassDumpSegment extends TagBounds {
         fieldSize = fieldTypeOffset + 1;
 
         minimumInstanceSize = 2 * idSize;
-
+        
         fieldsCache = Collections.synchronizedMap(new FieldsCache());
     }
 
@@ -122,18 +102,16 @@ class ClassDumpSegment extends TagBounds {
         List<JavaClass> allClasses = createClassCollection();
         int index = hprofHeap.idToInstanceNumber(classObjectID);
 
-        if (index > 0) {
-            try {
-                ClassDump dump = (ClassDump) allClasses.get(index - 1);
-                if (dump.fileOffset == hprofHeap.idToDumpOffset(classObjectID)) {
-                    return dump;
-                }
-            } catch (IndexOutOfBoundsException ex) { // classObjectID do not reffer to ClassDump, its instance number is > classes.size()
-
-                return null;
-            } catch (ClassCastException ex) { // classObjectID do not reffer to ClassDump
-
-                return null;
+            if (index > 0) {
+            	try {
+                    ClassDump dump = (ClassDump) allClasses.get(index - 1);
+                    if (dump.fileOffset == hprofHeap.idToDumpOffset(classObjectID)) {
+                    	return dump;
+                    }
+            	} catch (IndexOutOfBoundsException ex) { // classObjectID do not reffer to ClassDump, its instance number is > classes.size()
+            		return null;
+            	} catch (ClassCastException ex) { // classObjectID do not reffer to ClassDump
+            		return null;
             }
         }
 
@@ -158,7 +136,7 @@ class ClassDumpSegment extends TagBounds {
         Iterator<JavaClass> classIt = createClassCollection().iterator();
         Collection<JavaClass> result = new ArrayList<JavaClass>(256);
         Pattern pattern = Pattern.compile(regexp);
-
+        
         while (classIt.hasNext()) {
             ClassDump cls = (ClassDump) classIt.next();
 
@@ -187,15 +165,15 @@ class ClassDumpSegment extends TagBounds {
         Collection<JavaClass> allClasses = createClassCollection();
         Map<Long, JavaClass> map = new HashMap<Long, JavaClass>(allClasses.size()*4/3);
         Iterator<JavaClass> classIt = allClasses.iterator();
-
+        
         while(classIt.hasNext()) {
-            JavaClass cls = classIt.next();
-
+            ClassDump cls = (ClassDump) classIt.next();
+            
             map.put(cls.getJavaClassId(),cls);
         }
         return map;
     }
-
+    
     void addInstanceSize(ClassDump cls, int tag, long instanceOffset) {
         if ((tag == HprofHeap.OBJECT_ARRAY_DUMP) || (tag == HprofHeap.PRIMITIVE_ARRAY_DUMP)) {
             Long sizeLong = (Long) arrayMap.get(cls);
@@ -227,7 +205,7 @@ class ClassDumpSegment extends TagBounds {
             return classes;
         }
 
-        classes = new ArrayList<JavaClass>(1000);
+		List<JavaClass> cls = new ArrayList<JavaClass>(1000);
 
         long[] offset = new long[] { startOffset };
 
@@ -238,11 +216,12 @@ class ClassDumpSegment extends TagBounds {
             if (tag == HprofHeap.CLASS_DUMP) {
                 ClassDump classDump = new ClassDump(this, start);
                 long classId = classDump.getJavaClassId();
-                classes.add(classDump);
-                hprofHeap.addClassEntry(classId, start, classes.size());
+                cls.add(classDump);
+                hprofHeap.addClassEntry(classId, start, cls.size());
             }
         }
 
+        classes = Collections.unmodifiableList(cls);
         hprofHeap.getLoadClassSegment().setLoadClassOffsets();
         arrayMap = new HashMap<JavaClass, Long>(classes.size() / 15);
         extractSpecialClasses();
@@ -250,7 +229,8 @@ class ClassDumpSegment extends TagBounds {
         return classes;
     }
 
-    private void extractSpecialClasses() {
+    void extractSpecialClasses() {
+        ClassDump java_lang_Object = null;
         primitiveArrayMap = new HashMap<Integer, JavaClass>();
 
         Iterator<JavaClass> classIt = classes.iterator();
@@ -278,6 +258,8 @@ class ClassDumpSegment extends TagBounds {
                 typeObj = Integer.valueOf(HprofHeap.LONG);
             } else if (vmName.equals("java/lang/Class")) { // NOI18N
                 java_lang_Class = jcls;
+            } else if (vmName.equals("java/lang/Object")) { // NOI18N
+                java_lang_Object = jcls;
             } else if (vmName.equals("boolean[]")) { // NOI18N
                 typeObj = Integer.valueOf(HprofHeap.BOOLEAN);
             } else if (vmName.equals("char[]")) { // NOI18N
@@ -296,19 +278,61 @@ class ClassDumpSegment extends TagBounds {
                 typeObj = Integer.valueOf(HprofHeap.LONG);
             } else if (vmName.equals("java.lang.Class")) { // NOI18N
                 java_lang_Class = jcls;
+            } else if (vmName.equals("java.lang.Object")) { // NOI18N
+                java_lang_Object = jcls;
             }
 
             if (typeObj != null) {
                 primitiveArrayMap.put(typeObj, jcls);
             }
         }
+        if (java_lang_Object != null) {
+            newSize = java_lang_Object.getRawInstanceSize() > 0;
+        }
     }
 
-    @SuppressWarnings("serial")
-    private static class FieldsCache extends LinkedHashMap<JavaClass,List<Field>> {
+    //---- Serialization support
+    void writeToStream(DataOutputStream out) throws IOException {
+        super.writeToStream(out);
+        if (classes == null) {
+            out.writeInt(0);
+        } else {
+            out.writeInt(classes.size());
+            for (int i=0; i<classes.size(); i++) {
+                ClassDump classDump = (ClassDump) classes.get(i);
 
+                classDump.writeToStream(out);
+                Long size = (Long) arrayMap.get(classDump);
+                out.writeBoolean(size != null);
+                if (size != null) {
+                    out.writeLong(size.longValue());
+                }
+            }
+        }
+    }
+
+    ClassDumpSegment(HprofHeap heap, long start, long end, DataInputStream dis) throws IOException {
+        this(heap, start, end);
+        int classesSize = dis.readInt();
+        if (classesSize != 0) {
+            List cls = new ArrayList /*<JavaClass>*/(classesSize);
+            arrayMap = new HashMap(classesSize / 15);
+            
+            for (int i=0; i<classesSize; i++) {
+                ClassDump c = new ClassDump(this, dis.readLong(), dis);
+                cls.add(c);
+                if (dis.readBoolean()) {
+                    Long size = Long.valueOf(dis.readLong());
+                    arrayMap.put(c, size);
+                }
+            }
+            classes = Collections.unmodifiableList(cls);
+        }
+    }
+    
+    private static class FieldsCache extends LinkedHashMap<JavaClass, List<Field>> {
         private static final int SIZE = 500;
-
+        
         FieldsCache() {
             super(SIZE,0.75f,true);
         }
