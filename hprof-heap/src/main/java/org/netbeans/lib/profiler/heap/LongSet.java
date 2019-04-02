@@ -66,7 +66,8 @@ class LongSet
     /**
      * The number of modifications, to support fast-fail iterators
      */
-    private transient volatile int modCount;
+    @SuppressWarnings("unused")
+	private transient volatile int modCount;
 
     /**
      * The next size value at which to resize (capacity * load factor).

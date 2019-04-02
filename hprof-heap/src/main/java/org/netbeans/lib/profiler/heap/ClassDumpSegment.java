@@ -315,8 +315,8 @@ class ClassDumpSegment extends TagBounds {
         this(heap, start, end);
         int classesSize = dis.readInt();
         if (classesSize != 0) {
-            List cls = new ArrayList /*<JavaClass>*/(classesSize);
-            arrayMap = new HashMap(classesSize / 15);
+            List<JavaClass> cls = new ArrayList<JavaClass>(classesSize);
+            arrayMap = new HashMap<JavaClass, Long>(classesSize / 15);
             
             for (int i=0; i<classesSize; i++) {
                 ClassDump c = new ClassDump(this, dis.readLong(), dis);
@@ -330,7 +330,8 @@ class ClassDumpSegment extends TagBounds {
         }
     }
     
-    private static class FieldsCache extends LinkedHashMap<JavaClass, List<Field>> {
+    @SuppressWarnings("serial")
+	private static class FieldsCache extends LinkedHashMap<JavaClass, List<Field>> {
         private static final int SIZE = 500;
         
         FieldsCache() {

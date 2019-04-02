@@ -217,7 +217,7 @@ class HprofHeap implements Heap {
 
     public Collection<GCRoot> getGCRoots() {
         if (heapDumpSegment == null) {
-            return Collections.EMPTY_LIST;
+            return Collections.<GCRoot>emptyList();
         }
         return gcRoots.getGCRoots();
     }
@@ -288,9 +288,9 @@ class HprofHeap implements Heap {
         
     public Iterator<Instance> getAllInstancesIterator() {
         // make sure java classes are initialized
-        List classes = getAllClasses();
+        List<JavaClass> classes = getAllClasses();
         if (classes.isEmpty()) {
-            return Collections.EMPTY_LIST.iterator();
+            return Collections.<Instance>emptyList().iterator();
         }
         return new InstancesIterator();
     }
@@ -713,8 +713,8 @@ class HprofHeap implements Heap {
 	        
 	        while (classesIt.hasNext()) {
 	            ClassDump classDump = (ClassDump)classesIt.next();
-	            List fields = classDump.getStaticFieldValues();
-	            Iterator fit = fields.iterator();
+	            List<FieldValue> fields = classDump.getStaticFieldValues();
+	            Iterator<FieldValue> fit = fields.iterator();
 	            
 	            while(fit.hasNext()) {
 	                Object field = fit.next();
@@ -1384,7 +1384,8 @@ class HprofHeap implements Heap {
             }
 
             offset[0] += idSize;
-            byte type = readValue(offset);
+            @SuppressWarnings("unused")
+			byte type = readValue(offset);
         }
 
         return (int) (offset[0] - start);

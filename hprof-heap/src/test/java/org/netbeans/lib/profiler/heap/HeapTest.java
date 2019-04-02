@@ -53,6 +53,7 @@ import static org.junit.Assert.*;
  *
  * @author Tomas Hurka
  */
+@SuppressWarnings("rawtypes")
 public class HeapTest {
 
     private Heap heap;
@@ -145,7 +146,7 @@ public class HeapTest {
     /**
      * Test of getJavaClassesByRegExp method, of class Heap.
      */
-    @Test
+	@Test
     public void testGetJavaClassesByRegExp() {
         String regexp = ".*Lock.*";
         Collection result = heap.getJavaClassesByRegExp(regexp);
@@ -206,7 +207,8 @@ public class HeapTest {
         int instances = 0;
 
         while (instanceIt.hasNext()) {
-            Instance i = (Instance) instanceIt.next();
+            @SuppressWarnings("unused")
+			Instance i = (Instance) instanceIt.next();
             instances++;
         }
         assertEquals(instances, heap.getSummary().getTotalLiveInstances());
@@ -348,9 +350,10 @@ public class HeapTest {
         outFile.delete();
     }
 
+    @SuppressWarnings("resource")
     private void compareTextFiles(File goledFile, File outFile) throws IOException {
         InputStreamReader goldenIsr = new InputStreamReader(new FileInputStream(goledFile), "UTF-8");
-        LineNumberReader goldenReader = new LineNumberReader(goldenIsr);
+		LineNumberReader goldenReader = new LineNumberReader(goldenIsr);
         InputStreamReader isr = new InputStreamReader(new FileInputStream(outFile), "UTF-8");
         LineNumberReader reader = new LineNumberReader(isr);
         String goldenLine = "";

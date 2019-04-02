@@ -126,14 +126,15 @@ class StringSegment extends TagBounds {
         return getDumpBuffer().getID(start + stringIDOffset);
     }
 
-    private static class StringCache extends LinkedHashMap {
+    @SuppressWarnings("serial")
+	private static class StringCache extends LinkedHashMap<Long, String> {
         private static final int SIZE = 1000;
         
         StringCache() {
             super(SIZE,0.75f,true);
         }
 
-        protected boolean removeEldestEntry(Map.Entry eldest) {
+        protected boolean removeEldestEntry(Map.Entry<Long, String> eldest) {
             if (size() > SIZE) {
                 return true;
             }

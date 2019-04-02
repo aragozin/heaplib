@@ -357,7 +357,8 @@ class DominatorTree {
         map = new LongHashMap(dis);
     }
     
-    private static final class NearestGCRootCache extends LinkedHashMap {
+    @SuppressWarnings("serial")
+	private static final class NearestGCRootCache extends LinkedHashMap {
         private final int maxSize;
         
         private NearestGCRootCache(int size) {

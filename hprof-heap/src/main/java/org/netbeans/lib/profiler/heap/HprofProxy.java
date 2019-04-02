@@ -63,7 +63,7 @@ class HprofProxy {
     }
 
     private static Properties getPropertiesFromTable(ObjectArrayDump entriesObj, Properties props, String keyName, String valueName) {
-        Iterator enIt = entriesObj.getValues().iterator();
+        Iterator<Instance> enIt = entriesObj.getValues().iterator();
         while (enIt.hasNext()) {
             Instance entry = (Instance) enIt.next();
             

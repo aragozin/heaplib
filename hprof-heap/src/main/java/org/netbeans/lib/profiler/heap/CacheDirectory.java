@@ -110,7 +110,8 @@ class CacheDirectory {
         return isFileR(f) && f.canWrite();
     }
 
-    private static boolean isLinux() {
+    @SuppressWarnings("unused")
+	private static boolean isLinux() {
         String osName = System.getProperty("os.name");  // NOI18N
 
         return osName.endsWith("Linux"); // NOI18N

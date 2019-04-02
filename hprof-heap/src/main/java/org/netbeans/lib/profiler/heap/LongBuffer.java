@@ -161,7 +161,8 @@ class LongBuffer {
         writeStream.writeLong(data);
     }
     
-    LongBuffer revertBuffer() throws IOException {
+    @SuppressWarnings("resource")
+	LongBuffer revertBuffer() throws IOException {
         LongBuffer reverted = new LongBuffer(buffer.length, cacheDirectory);
         
         if (bufferSize < buffer.length) {

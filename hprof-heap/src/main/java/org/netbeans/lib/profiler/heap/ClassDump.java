@@ -43,7 +43,7 @@ class ClassDump extends HprofObject implements JavaClass {
     //~ Static fields/initializers -----------------------------------------------------------------------------------------------
     
     private static final boolean DEBUG = false;
-    private static final Set CANNOT_CONTAIN_ITSELF = new HashSet(Arrays.asList(new String[] {
+    private static final Set<String> CANNOT_CONTAIN_ITSELF = new HashSet<String>(Arrays.asList(new String[] {
         "java.lang.String",         // NOI18N
         "java.lang.StringBuffer",   // NOI18N
         "java.lang.StringBuilder",  // NOI18N
@@ -99,7 +99,7 @@ class ClassDump extends HprofObject implements JavaClass {
     }
 
     public List<Field> getFields() {
-        List filedsList = (List) classDumpSegment.fieldsCache.get(this);
+        List<Field> filedsList = classDumpSegment.fieldsCache.get(this);
         if (filedsList == null) {
             filedsList = Collections.unmodifiableList(computeFields());
             classDumpSegment.fieldsCache.put(this,filedsList);
@@ -191,7 +191,7 @@ class ClassDump extends HprofObject implements JavaClass {
     public Iterator<Instance> getInstancesIterator() {
         int instancesCount = getInstancesCount();
         if (instancesCount == 0) {
-            return Collections.EMPTY_LIST.iterator();
+            return Collections.<Instance>emptyList().iterator();
         }
         return new InstancesIterator(instancesCount);
     }

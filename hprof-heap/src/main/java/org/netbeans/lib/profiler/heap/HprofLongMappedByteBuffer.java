@@ -44,8 +44,9 @@ class HprofLongMappedByteBuffer extends HprofByteBuffer {
 
     //~ Constructors -------------------------------------------------------------------------------------------------------------
 
+    @SuppressWarnings("resource")
     HprofLongMappedByteBuffer(File dumpFile) throws IOException {
-        FileInputStream fis = new FileInputStream(dumpFile);
+		FileInputStream fis = new FileInputStream(dumpFile);
         FileChannel channel = fis.getChannel();
         length = channel.size();
         dumpBuffer = new MappedByteBuffer[(int) (((length + BUFFER_SIZE) - 1) / BUFFER_SIZE)];

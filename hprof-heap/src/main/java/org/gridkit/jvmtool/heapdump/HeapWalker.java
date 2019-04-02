@@ -282,6 +282,7 @@ public class HeapWalker {
 		int len = chars.getLength() >> coder;
 		char[] text = new char[len];
 
+		@SuppressWarnings({ "unchecked", "rawtypes" }) // generic recast
 		List<String> values = (List) chars.getValues();
 		if (coder == UTF16)
 			for (int i = 0; i < text.length; i++) {

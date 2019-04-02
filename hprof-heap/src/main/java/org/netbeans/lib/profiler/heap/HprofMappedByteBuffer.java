@@ -37,8 +37,9 @@ class HprofMappedByteBuffer extends HprofByteBuffer {
 
     //~ Constructors -------------------------------------------------------------------------------------------------------------
 
+    @SuppressWarnings("resource")
     HprofMappedByteBuffer(File dumpFile) throws IOException {
-        FileInputStream fis = new FileInputStream(dumpFile);
+		FileInputStream fis = new FileInputStream(dumpFile);
         FileChannel channel = fis.getChannel();
         length = channel.size();
         dumpBuffer = channel.map(FileChannel.MapMode.READ_ONLY, 0, length);

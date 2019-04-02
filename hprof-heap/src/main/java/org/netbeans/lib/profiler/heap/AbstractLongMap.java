@@ -392,7 +392,8 @@ abstract class AbstractLongMap {
             buf.putLong((int) index, data);
         }
 
-        @Override
+		@Override
+		@SuppressWarnings("resource")
         public void force(File bufferFile) throws IOException {
             if (MAP_MODE == FileChannel.MapMode.PRIVATE) {
                 File newBufferFile = new File(bufferFile.getAbsolutePath()+".new"); // NOI18N
@@ -472,7 +473,8 @@ abstract class AbstractLongMap {
             return (int) (index & BUFFER_SIZE_MASK);
         }
 
-        @Override
+		@Override
+		@SuppressWarnings("resource")
         public void force(File bufferFile) throws IOException{
             if (MemoryMappedData.MAP_MODE == FileChannel.MapMode.PRIVATE) {
                 File newBufferFile = new File(bufferFile.getAbsolutePath()+".new"); // NOI18N

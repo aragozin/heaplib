@@ -42,8 +42,8 @@ class StackFrameSegment extends TagBounds {
     final int timeOffset;
     final int classSerialNumberOffset;
     final int lineNumberOffset;
-    private Map idToFrame;
-    private Map classCache = Collections.synchronizedMap(new LoadClassCache());
+    private Map<Long, Long> idToFrame;
+    private Map<Integer, String> classCache = Collections.synchronizedMap(new LoadClassCache());
 
     //~ Constructors -------------------------------------------------------------------------------------------------------------
 
@@ -103,7 +103,7 @@ class StackFrameSegment extends TagBounds {
         if (idToFrame == null) {
             long[] offset = new long[] { startOffset };
 
-            idToFrame = new HashMap();
+            idToFrame = new HashMap<Long, Long>();
             while (offset[0] < endOffset) {
                 long start = offset[0];
                 long frameID = readStackFrameTag(offset);
@@ -135,14 +135,15 @@ class StackFrameSegment extends TagBounds {
         return className;
     }
 
-    private static class LoadClassCache extends LinkedHashMap {
+    @SuppressWarnings("serial")
+	private static class LoadClassCache extends LinkedHashMap<Integer, String> {
         private static final int SIZE = 1000;
         
         LoadClassCache() {
             super(SIZE,0.75f,true);
         }
 
-        protected boolean removeEldestEntry(Map.Entry eldest) {
+        protected boolean removeEldestEntry(Map.Entry<Integer, String> eldest) {
             if (size() > SIZE) {
                 return true;
             }

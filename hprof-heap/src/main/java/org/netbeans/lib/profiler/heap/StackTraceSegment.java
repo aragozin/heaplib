@@ -38,7 +38,7 @@ class StackTraceSegment extends TagBounds {
     final int framesListOffset;
     final int numberOfFramesOffset;
     final int timeOffset;
-    private Map serialNumToStackTrace;
+    private Map<Long, Long> serialNumToStackTrace;
 
     //~ Constructors -------------------------------------------------------------------------------------------------------------
 
@@ -96,7 +96,7 @@ class StackTraceSegment extends TagBounds {
         if (serialNumToStackTrace == null) {
             long[] offset = new long[] { startOffset };
 
-            serialNumToStackTrace = new HashMap();
+            serialNumToStackTrace = new HashMap<Long, Long>();
             while (offset[0] < endOffset) {
                 long start = offset[0];
                 long serialNumber = readStackTraceTag(offset);

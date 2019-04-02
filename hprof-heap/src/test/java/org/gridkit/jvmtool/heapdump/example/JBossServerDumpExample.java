@@ -225,7 +225,8 @@ public class JBossServerDumpExample {
         System.out.println(list.size() + " clusters");
     }    
     
-    private void loadSingletons(HeapClusterAnalyzer hca, String path) throws IOException {
+    @SuppressWarnings("resource")
+	private void loadSingletons(HeapClusterAnalyzer hca, String path) throws IOException {
         BufferedReader br = new BufferedReader(new FileReader(path));
         String line;
         while((line = br.readLine()) != null) {
