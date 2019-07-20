@@ -1,3 +1,0 @@
-select map(sort(map(heap.objects('java.lang.ClassLoader'),
-   '{loader: it, count: it.classes.elementCount }'), 'rhs.count - lhs.count'),
-   'toHtml(it) + "<br>"')

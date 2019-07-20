@@ -1,1 +1,0 @@
-select count(heap.objects('sun.reflect.DelegatingClassLoader'))

@@ -19,31 +19,38 @@
 
 package org.netbeans.modules.profiler.oql.engine.api.impl;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotSame;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
 import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+
 import org.junit.After;
 import org.junit.AfterClass;
+import org.junit.Assume;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.netbeans.lib.profiler.heap.HeapFactory;
+import org.netbeans.lib.profiler.heap.FastHprofHeap;
+import org.netbeans.lib.profiler.heap.HeapFactory2;
 import org.netbeans.lib.profiler.heap.Instance;
 import org.netbeans.lib.profiler.heap.JavaClass;
 import org.netbeans.modules.profiler.oql.engine.api.OQLEngine;
 import org.netbeans.modules.profiler.oql.engine.api.OQLEngine.ObjectVisitor;
-import static org.junit.Assert.*;
 
 /**
  *
  * @author Jaroslav Bachorik
  */
 public class OQLEngineTest {
-    private OQLEngine instance;
+    protected OQLEngine instance;
 
     public OQLEngineTest() {
     }
@@ -58,8 +65,7 @@ public class OQLEngineTest {
 
     @Before
     public void setUp() throws IOException, URISyntaxException {
-        URL url = getClass().getResource("small_heap.bin");
-        instance = new OQLEngine(HeapFactory.createHeap(new File(url.toURI())));
+        instance = new OQLEngine(HeapFactory2.createFastHeap(new File("src/test/resources/small_heap.bin")));
     }
 
     @After
@@ -75,7 +81,7 @@ public class OQLEngineTest {
         instance.executeQuery("select a from [J a", null);
         instance.executeQuery("select a from [F a", null);
         instance.executeQuery("select a from [Z a", null);
-        
+
         instance.executeQuery("select a from [java.lang.String a", null);
 
 //        try {
@@ -98,7 +104,8 @@ public class OQLEngineTest {
         final boolean[] rslt = new boolean[]{true};
         instance.executeQuery("select a.count from java.lang.String a", new ObjectVisitor() {
 
-            public boolean visit(Object o) {
+            @Override
+			public boolean visit(Object o) {
                 if (!(o instanceof Integer)) {
                     rslt[0] = false;
                     return true;
@@ -117,7 +124,8 @@ public class OQLEngineTest {
 
         instance.executeQuery("select map(heap.findClass(\"java.io.File\").fields, 'toHtml(it.name) + \" = \" + toHtml(it.signature)')", new ObjectVisitor() {
 
-            public boolean visit(Object o) {
+            @Override
+			public boolean visit(Object o) {
                 values[0] = o.toString();
                 return true;
             }
@@ -128,10 +136,13 @@ public class OQLEngineTest {
 
     @Test
     public void testObjectClass() throws Exception {
+        Assume.assumeFalse(instance.getHeap() instanceof FastHprofHeap);
+
         System.out.println("test object class accessor");
 
         instance.executeQuery("select map(a.clazz.statics, 'toHtml(it)') from java.lang.String a", new ObjectVisitor() {
 
+            @Override
             public boolean visit(Object o) {
                 return true;
             }
@@ -162,6 +173,7 @@ public class OQLEngineTest {
 
         instance.executeQuery(query, new ObjectVisitor() {
 
+            @Override
             public boolean visit(Object o) {
                 counter[0]++;
                 return true;
@@ -179,6 +191,7 @@ public class OQLEngineTest {
 
         instance.executeQuery(query, new ObjectVisitor() {
 
+            @Override
             public boolean visit(Object o) {
                 counter[0]++;
                 return true;
@@ -196,6 +209,7 @@ public class OQLEngineTest {
 
         instance.executeQuery(query, new ObjectVisitor() {
 
+            @Override
             public boolean visit(Object o) {
                 counter[0]++;
                 return true;
@@ -213,6 +227,7 @@ public class OQLEngineTest {
 
         instance.executeQuery(query, new ObjectVisitor() {
 
+            @Override
             public boolean visit(Object o) {
                 counter[0]++;
                 return true;
@@ -223,6 +238,8 @@ public class OQLEngineTest {
 
     @Test
     public void testHeapLivePaths() throws Exception {
+        Assume.assumeFalse(instance.getHeap() instanceof FastHprofHeap);
+
         System.out.println("heap.livepaths");
         final int[] counter = new int[1];
 
@@ -230,6 +247,7 @@ public class OQLEngineTest {
 
         instance.executeQuery(query, new ObjectVisitor() {
 
+            @Override
             public boolean visit(Object o) {
                 if (o != null) {
                     counter[0]++;
@@ -250,6 +268,7 @@ public class OQLEngineTest {
 
         instance.executeQuery("select heap.objects(\"java.io.InputStream\", true)", new ObjectVisitor() {
 
+            @Override
             public boolean visit(Object o) {
                 count[0]++;
                 return false;
@@ -257,6 +276,7 @@ public class OQLEngineTest {
         });
         instance.executeQuery("select heap.objects(\"java.io.InputStream\", false)", new ObjectVisitor() {
 
+            @Override
             public boolean visit(Object o) {
                 count[1]++;
                 return false;
@@ -278,6 +298,7 @@ public class OQLEngineTest {
 
         instance.executeQuery(query, new ObjectVisitor() {
 
+            @Override
             public boolean visit(Object o) {
                 System.out.println(((JavaClass)o).getName());
                 counter[0]++;
@@ -296,6 +317,7 @@ public class OQLEngineTest {
 
         instance.executeQuery(query, new ObjectVisitor() {
 
+            @Override
             public boolean visit(Object o) {
                 System.out.println(((JavaClass)o).getName());
                 counter[0]++;
@@ -307,6 +329,8 @@ public class OQLEngineTest {
 
     @Test
     public void testforEachReferrer() throws Exception {
+        Assume.assumeFalse(instance.getHeap() instanceof FastHprofHeap);
+
         System.out.println("forEachReferrer");
 
         String query = "select forEachReferrer(function(xxx) { print(\"referrer: \" + xxx.id); print(\"\\n\");}, heap.findObject(1684166976))";
@@ -325,6 +349,8 @@ public class OQLEngineTest {
 
     @Test
     public void testReferrersInstance() throws Exception {
+        Assume.assumeFalse(instance.getHeap() instanceof FastHprofHeap);
+
         System.out.println("referrers-instance");
 
         String query = "select referrers(heap.findObject(1684166976))";
@@ -333,6 +359,7 @@ public class OQLEngineTest {
 
         instance.executeQuery(query, new ObjectVisitor() {
 
+            @Override
             public boolean visit(Object o) {
                 referrers.add(((Instance)o).getInstanceId());
                 return false;
@@ -355,6 +382,7 @@ public class OQLEngineTest {
 
         instance.executeQuery(query, new ObjectVisitor() {
 
+            @Override
             public boolean visit(Object o) {
                 referees.add(((Instance)o).getInstanceId());
                 return false;
@@ -377,6 +405,7 @@ public class OQLEngineTest {
 
         instance.executeQuery(query, new ObjectVisitor() {
 
+            @Override
             public boolean visit(Object o) {
                 referees.add(((Instance)o).getInstanceId());
                 return false;
@@ -399,6 +428,7 @@ public class OQLEngineTest {
 
         instance.executeQuery(query, new ObjectVisitor() {
 
+            @Override
             public boolean visit(Object o) {
                 result[0] = (Boolean)o;
                 return true;
@@ -409,6 +439,7 @@ public class OQLEngineTest {
         query = "select refers(heap.findObject(1684166992), heap.findObject(1684166976))";
         instance.executeQuery(query, new ObjectVisitor() {
 
+            @Override
             public boolean visit(Object o) {
                 result[0] = (Boolean)o;
                 return true;
@@ -426,6 +457,7 @@ public class OQLEngineTest {
 
         instance.executeQuery(query, new ObjectVisitor() {
 
+            @Override
             public boolean visit(Object o) {
                 count[0]++;
                 return false;
@@ -443,6 +475,7 @@ public class OQLEngineTest {
 
         instance.executeQuery(query, new ObjectVisitor() {
 
+            @Override
             public boolean visit(Object o) {
                 System.out.println(o);
                 counter[0]++;
@@ -459,6 +492,7 @@ public class OQLEngineTest {
 
         instance.executeQuery("select sizeof(o) from [I o", new ObjectVisitor() {
 
+            @Override
             public boolean visit(Object o) {
                 if (o instanceof Number) counter[0]++;
                 return false;
@@ -470,12 +504,15 @@ public class OQLEngineTest {
 
     @Test
     public void testRoot() throws Exception {
+        Assume.assumeFalse(instance.getHeap() instanceof FastHprofHeap);
+
         System.out.println("root");
 
         final int[] count = new int[1];
 
         instance.executeQuery("select root(heap.findObject(1684166976))", new ObjectVisitor() {
 
+            @Override
             public boolean visit(Object o) {
                 count[0]++;
                 return false;
@@ -487,12 +524,15 @@ public class OQLEngineTest {
 
     @Test
     public void testContains() throws Exception {
+        Assume.assumeFalse(instance.getHeap() instanceof FastHprofHeap);
+
         System.out.println("contains");
 
         final int[] count = new int[1];
 
         instance.executeQuery("select s from java.lang.String s where contains(referrers(s), \"classof(it).name == 'java.lang.Class'\")", new ObjectVisitor() {
 
+            @Override
             public boolean visit(Object o) {
                 count[0]++;
                 return false;
@@ -504,12 +544,15 @@ public class OQLEngineTest {
 
     @Test
     public void testMap() throws Exception {
+        Assume.assumeFalse(instance.getHeap() instanceof FastHprofHeap);
+
         System.out.println("map");
 
         final String[] output = new String[] {"", "$assertionsDisabled=true\nserialVersionUID=301077366599181570\ntmpdir=null\ncounter=-1\ntmpFileLock=<a href='file://instance/1684106928' name='1684106928'>java.lang.Object#6</a>\npathSeparator=<a href='file://instance/1684106888' name='1684106888'>java.lang.String#101</a>\npathSeparatorChar=:\nseparator=<a href='file://instance/1684106848' name='1684106848'>java.lang.String#100</a>\nseparatorChar=/\nfs=<a href='file://instance/1684106408' name='1684106408'>java.io.UnixFileSystem#1</a>\n<classLoader>=null\n"};
 
         instance.executeQuery("select map(heap.findClass(\"java.io.File\").statics, \"index + '=' + toHtml(it)\")", new ObjectVisitor() {
 
+            @Override
             public boolean visit(Object o) {
                 output[0] += o.toString() + "\n";
                 return false;
@@ -528,6 +571,7 @@ public class OQLEngineTest {
 
         instance.executeQuery("select map(sort(filter(heap.objects('[C'), 'it.length > 0'), 'sizeof(lhs) - sizeof(rhs)'), \"sizeof(it)\")", new ObjectVisitor() {
 
+            @Override
             public boolean visit(Object o) {
                 int aSize = ((Number)o).intValue();
                 if (aSize < size[0]) {
@@ -552,6 +596,7 @@ public class OQLEngineTest {
 
         instance.executeQuery("select map(sort(heap.objects('[C'), 'sizeof(lhs) - sizeof(rhs)'), \"sizeof(it)\")", new ObjectVisitor() {
 
+            @Override
             public boolean visit(Object o) {
                 int aSize = ((Number)o).intValue();
                 if (aSize < size[0]) {
@@ -576,6 +621,7 @@ public class OQLEngineTest {
 
         instance.executeQuery("select length(a.value) from java.lang.String a", new ObjectVisitor() {
 
+            @Override
             public boolean visit(Object o) {
                 rsltClass[0] = o.getClass();
                 return true;
@@ -595,6 +641,7 @@ public class OQLEngineTest {
 
         instance.executeQuery("select count(a.value) from java.lang.String a", new ObjectVisitor() {
 
+            @Override
             public boolean visit(Object o) {
                 rsltClass[0] = o.getClass();
                 return true;
@@ -614,6 +661,7 @@ public class OQLEngineTest {
 
         instance.executeQuery("select count(a.value, 'true') from java.lang.String a", new ObjectVisitor() {
 
+            @Override
             public boolean visit(Object o) {
                 rsltClass[0] = o.getClass();
                 return true;
@@ -633,6 +681,7 @@ public class OQLEngineTest {
 
         instance.executeQuery("select { name: t.name? t.name.toString() : \"null\", thread: t }  from instanceof java.lang.Thread t", new ObjectVisitor() {
 
+            @Override
             public boolean visit(Object o) {
                 rsltClass[0] = o.getClass();
                 return true;
@@ -655,6 +704,7 @@ public class OQLEngineTest {
                 "}" +
             ")", new ObjectVisitor() {
 
+            @Override
             public boolean visit(Object o) {
                 System.out.println(o);
                 rslt[0] = o.toString();
@@ -675,6 +725,7 @@ public class OQLEngineTest {
             "select map(filter(heap.findClass('java.lang.System').statics.props.table, 'it != null && it.key != null && it.value != null'), " +
             "'{ key: it.key.toString(), value: it.value.toString() }')", new ObjectVisitor() {
 
+            @Override
             public boolean visit(Object o) {
                 System.out.println(o);
                 rslt[0] = o.toString();
@@ -692,6 +743,7 @@ public class OQLEngineTest {
 
         instance.executeQuery("select unique(map(filter(reachables(a), 'it != null'), 'toHtml(it.clazz)')) from instanceof java.util.HashMap a", new ObjectVisitor() {
 
+            @Override
             public boolean visit(Object o) {
                 result[0] = o.toString();
                 return true;
@@ -707,6 +759,7 @@ public class OQLEngineTest {
 
         instance.executeQuery("select map(filter(a.table, 'it != null'), 'reachables(it)') from instanceof java.util.HashMap a", new ObjectVisitor() {
 
+            @Override
             public boolean visit(Object o) {
                 System.out.println(o);
                 return true;
@@ -720,6 +773,7 @@ public class OQLEngineTest {
 
         instance.executeQuery("select map(map(filter(a.table, 'it != null'), 'reachables(it)'), 'it.clazz.statics') from instanceof java.util.HashMap a", new ObjectVisitor() {
 
+            @Override
             public boolean visit(Object o) {
                 System.out.println(o);
                 return true;
@@ -733,6 +787,7 @@ public class OQLEngineTest {
 
         instance.executeQuery("select top(heap.objects('java.lang.String', false, '(2 * it.offset) + (2 * (it.value.length - (1*it.count + 1*it.offset))) > 0'), '((2 * rhs.offset) + (2 * (rhs.value.length - (1*rhs.count + 1*rhs.offset)))) - ((2 * lhs.offset) + (2 * (lhs.value.length - (1*lhs.count + 1*lhs.offset))))')", new ObjectVisitor() {
 
+            @Override
             public boolean visit(Object o) {
                 System.out.println(o);
                 return false;

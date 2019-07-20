@@ -17,29 +17,21 @@
  * under the License.
  */
 
-package org.netbeans.modules.profiler.oql.spi;
+package org.netbeans.modules.profiler.oql.engine.api.impl;
 
-import javax.swing.JEditorPane;
-import javax.swing.text.Document;
+import java.io.File;
+import java.io.IOException;
+import java.net.URISyntaxException;
+
+import org.junit.Before;
+import org.netbeans.lib.profiler.heap.HeapFactory2;
 import org.netbeans.modules.profiler.oql.engine.api.OQLEngine;
 
-/**
- *
- * @author Jaroslav Bachorik
- */
-abstract public class OQLEditorImpl {
-    public final static String VALIDITY_PROPERTY = "document#valid";
-    public static interface ValidationCallback {
-        void callback(boolean lexingResult);
-    }
+public class OQLEngineFastHeapTest extends OQLEngineTest {
 
-    final static protected ValidationCallback getValidationCallback(Document document) {
-        return (ValidationCallback)document.getProperty(ValidationCallback.class);
+	@Before
+	@Override
+    public void setUp() throws IOException, URISyntaxException {
+        instance = new OQLEngine(HeapFactory2.createFastHeap(new File("src/test/resources/small_heap.bin")));
     }
-
-    final static protected OQLEngine getEngine(Document document) {
-        return (OQLEngine)document.getProperty(OQLEngine.class);
-    }
-
-    public abstract JEditorPane getEditorPane();
 }

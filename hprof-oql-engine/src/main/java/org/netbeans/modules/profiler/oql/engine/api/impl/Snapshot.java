@@ -19,10 +19,19 @@
 package org.netbeans.modules.profiler.oql.engine.api.impl;
 
 import java.lang.reflect.Method;
-import java.util.*;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Deque;
+import java.util.Enumeration;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
 import org.netbeans.lib.profiler.heap.Field;
 import org.netbeans.lib.profiler.heap.GCRoot;
 import org.netbeans.lib.profiler.heap.Heap;
@@ -35,9 +44,6 @@ import org.netbeans.lib.profiler.heap.Value;
 import org.netbeans.modules.profiler.oql.engine.api.OQLEngine;
 import org.netbeans.modules.profiler.oql.engine.api.ReferenceChain;
 
-import static org.netbeans.lib.profiler.utils.VMUtils.*;
-import org.openide.util.Enumerations;
-
 /**
  *
  * @author      Jaroslav Bachorik
@@ -47,12 +53,45 @@ import org.openide.util.Enumerations;
  * heapwalker model
  */
 public class Snapshot {
+
+
+    public static final char BOOLEAN = 'Z'; // NOI18N
+    public static final char CHAR = 'C'; // NOI18N
+    public static final char BYTE = 'B'; // NOI18N
+    public static final char SHORT = 'S'; // NOI18N
+    public static final char INT = 'I'; // NOI18N
+    public static final char LONG = 'J'; // NOI18N
+    public static final char FLOAT = 'F'; // NOI18N
+    public static final char DOUBLE = 'D'; // NOI18N
+    public static final char VOID = 'V'; // NOI18N
+    public static final char REFERENCE = 'L'; // NOI18N
+
+    public static final String BOOLEAN_CODE = "Z"; // NOI18N
+    public static final String CHAR_CODE = "C"; // NOI18N
+    public static final String BYTE_CODE = "B"; // NOI18N
+    public static final String SHORT_CODE = "S"; // NOI18N
+    public static final String INT_CODE = "I"; // NOI18N
+    public static final String LONG_CODE = "J"; // NOI18N
+    public static final String FLOAT_CODE = "F"; // NOI18N
+    public static final String DOUBLE_CODE = "D"; // NOI18N
+    public static final String VOID_CODE = "V"; // NOI18N
+
+    public static final String BOOLEAN_STRING = "boolean"; // NOI18N
+    public static final String CHAR_STRING = "char"; // NOI18N
+    public static final String BYTE_STRING = "byte"; // NOI18N
+    public static final String SHORT_STRING = "short"; // NOI18N
+    public static final String INT_STRING = "int"; // NOI18N
+    public static final String LONG_STRING = "long"; // NOI18N
+    public static final String FLOAT_STRING = "float"; // NOI18N
+    public static final String DOUBLE_STRING = "double"; // NOI18N
+    public static final String VOID_STRING = "void"; // NOI18N
+
     private final Heap delegate;
     private JavaClass weakReferenceClass;
     private int referentFieldIndex;
     private ReachableExcludes reachableExcludes;
     final private OQLEngine engine;
-    
+
     public Snapshot(Heap heap, OQLEngine engine) {
         this.delegate = heap;
         this.engine = engine;
@@ -170,14 +209,17 @@ public class Snapshot {
         final Iterator delegated = delegate.getJavaClassesByRegExp(regex).iterator();
         return new Iterator() {
 
+            @Override
             public boolean hasNext() {
                 return delegated.hasNext();
             }
 
+            @Override
             public Object next() {
                 return ((JavaClass)delegated.next()).getName();
             }
 
+            @Override
             public void remove() {
                 delegated.remove();
             }
@@ -207,7 +249,7 @@ public class Snapshot {
     public Iterator getReferrers(Object obj, boolean includeWeak) {
         List instances = new ArrayList();
         List references = new ArrayList();
-        
+
         if (obj instanceof Instance) {
             references.addAll(((Instance)obj).getReferences());
         } else if (obj instanceof JavaClass) {
@@ -235,7 +277,7 @@ public class Snapshot {
     public Iterator getReferees(Object obj, boolean includeWeak) {
         List instances = new ArrayList();
         List values = new ArrayList();
-        
+
         if (obj instanceof Instance) {
             Instance o = (Instance)obj;
             values.addAll(o.getFieldValues());
@@ -298,7 +340,7 @@ public class Snapshot {
     public Iterator getRoots() {
         return getRootsList().iterator();
     }
-    
+
     public List getRootsList() {
         List<Object> roots = new ArrayList<Object>();
         for(Object rootObj : delegate.getGCRoots()) {
@@ -322,7 +364,7 @@ public class Snapshot {
         List rootList = getRootsList();
         return (GCRoot[]) rootList.toArray(new GCRoot[0]);
     }
-   
+
     public ReferenceChain[] rootsetReferencesTo(Instance target, boolean includeWeak) {
         class State {
             private Iterator<Instance> iterator;
@@ -336,13 +378,13 @@ public class Snapshot {
         }
         Deque<State> stack = new ArrayDeque<State>();
         Set ignored = new HashSet();
-        
+
         List<ReferenceChain> result = new ArrayList<ReferenceChain>();
-        
+
         Iterator toInspect = getRoots();
         ReferenceChain path = null;
         State s = new State(path, toInspect);
-        
+
         do {
             if (path != null && path.getObj().equals(target)) {
                 result.add(path);
@@ -387,7 +429,7 @@ public class Snapshot {
         // Trivial tail recursion:  I have faith in javac.
         }
     }
-    
+
     private boolean isWeakRef(Instance inst) {
         return weakReferenceClass != null && isAssignable(inst.getJavaClass(), weakReferenceClass);
     }

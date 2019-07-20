@@ -1,1 +1,0 @@
-select count(heap.classes(), 'it.loader == null')

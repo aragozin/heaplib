@@ -31,7 +31,7 @@ import org.gridkit.jvmtool.heapdump.MissingInstance;
 public class FastHprofHeap extends HprofHeap {
 
     public static HprofByteBuffer newFileBuffer(File file) throws IOException {
-        return HeapFactory.createHprofByteBuffer(file, HeapFactory.DEFAULT_BUFFER);
+        return HeapFactory2.createHprofByteBuffer(file, HeapFactory.DEFAULT_BUFFER);
     }
 
     private Map<Long, ClassEntry> classes;
@@ -39,7 +39,7 @@ public class FastHprofHeap extends HprofHeap {
     private boolean missingStubsEnabled;
 
     /**
-     * Please use {@link HeapFactory}
+     * Please use {@link HeapFactory2}
      */
     protected FastHprofHeap(File dumpFile, int seg) throws FileNotFoundException, IOException {
         super(dumpFile, seg, new NullCacheDirectory());
@@ -48,7 +48,7 @@ public class FastHprofHeap extends HprofHeap {
     }
 
     /**
-     * Please use {@link HeapFactory}
+     * Please use {@link HeapFactory2}
      */
     protected FastHprofHeap(HprofByteBuffer dumpBuffer, int seg) throws FileNotFoundException, IOException {
         super(dumpBuffer, seg);
@@ -59,7 +59,7 @@ public class FastHprofHeap extends HprofHeap {
     public void enableMissingInstanceStubs(boolean enabled) {
     	this.missingStubsEnabled = enabled;
     }
-    
+
     @Override
     protected LongMap initIdMap() throws FileNotFoundException, IOException {
         return null;
@@ -100,7 +100,8 @@ public class FastHprofHeap extends HprofHeap {
         classes.put(instanceId, ce);
     }
 
-    public Instance getInstanceByID(long instanceID) {
+    @Override
+	public Instance getInstanceByID(long instanceID) {
         try {
 			if (instanceID == 0L) {
 			    return null;
@@ -141,7 +142,7 @@ public class FastHprofHeap extends HprofHeap {
 			    }
 			}
 
-			
+
 			if (tag == INSTANCE_DUMP) {
 			    return new InstanceDump(classDump, start);
 			} else if (tag == OBJECT_ARRAY_DUMP) {
@@ -172,15 +173,15 @@ public class FastHprofHeap extends HprofHeap {
             return null;
         }
     }
-    
+
     @Override
     public List<Instance> getBiggestObjectsByRetainedSize(int number) {
-        throw new UnsupportedOperationException();
+        throw new HeapOperationUnsupportedException();
     }
 
     @Override
     long getRetainedSize(Instance instance) {
-        throw new UnsupportedOperationException();
+        throw new HeapOperationUnsupportedException();
     }
 
     @Override
@@ -190,15 +191,25 @@ public class FastHprofHeap extends HprofHeap {
 
     @Override
     synchronized void computeReferences() {
-        throw new UnsupportedOperationException();
+        throw new HeapOperationUnsupportedException();
     }
 
     @Override
     synchronized void computeRetainedSize() {
-        throw new UnsupportedOperationException();
+        throw new HeapOperationUnsupportedException();
     }
 
-    private static class ClassEntry {
+	@Override
+	List<Value> findReferencesFor(long instanceId) {
+		throw new HeapOperationUnsupportedException();
+	}
+
+	@Override
+	Instance getNearestGCRootPointer(Instance instance) {
+		throw new HeapOperationUnsupportedException();
+	}
+
+	private static class ClassEntry {
         long offset;
         int index;
     }

@@ -18,11 +18,19 @@
  */
 package org.netbeans.modules.profiler.oql.engine.api.impl;
 
-import java.io.*;
-import java.util.*;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.util.Enumeration;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Set;
+import java.util.Stack;
+import java.util.StringTokenizer;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
 import javax.script.Bindings;
 import javax.script.Compilable;
 import javax.script.CompiledScript;
@@ -30,13 +38,12 @@ import javax.script.Invocable;
 import javax.script.ScriptContext;
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
-import org.netbeans.api.scripting.Scripting;
+
 import org.netbeans.lib.profiler.heap.Instance;
 import org.netbeans.lib.profiler.heap.JavaClass;
 import org.netbeans.modules.profiler.oql.engine.api.OQLEngine.OQLQuery;
 import org.netbeans.modules.profiler.oql.engine.api.OQLEngine.ObjectVisitor;
 import org.netbeans.modules.profiler.oql.engine.api.OQLException;
-import org.openide.util.NbBundle;
 
 /**
  * This is Object Query Language Interpreter
@@ -47,20 +54,7 @@ import org.openide.util.NbBundle;
 public class OQLEngineImpl {
     final private static Logger LOGGER = Logger.getLogger(OQLEngineImpl.class.getName());
 
-    private static boolean oqlSupported;
-
-    static {
-        try {
-            // Do we have JavaScript engine?
-            ScriptEngineManager manager = Scripting.createManager();
-            Object engine = manager.getEngineByName("JavaScript"); // NOI18N
-
-            oqlSupported = engine != null;
-        } catch (Throwable ex) {
-            LOGGER.log(Level.INFO,"OQLEngine init",ex); // NOI18N
-            oqlSupported = false;
-        }
-    }
+    private static boolean oqlSupported = true;
 
     // check OQL is supported or not before creating OQLEngine 
     public static boolean isOQLSupported() {
@@ -109,15 +103,6 @@ public class OQLEngineImpl {
         executeQuery((OQLQueryImpl)parsedQuery, visitor);
     }
 
-    @NbBundle.Messages({
-        "ERROR_NO_SELECT_CLAUSE=query syntax error: no 'select' clause",
-        "ERROR_EMPTY_SELECT=query syntax error: 'select' expression can not be empty",
-        "ERROR_INSTANCEOF_NO_CLASSNAME=no class name after 'instanceof'",
-        "ERROR_FROM_NO_CLASSNAME=query syntax error: class name must follow 'from'",
-        "ERROR_NO_IDENTIFIER=query syntax error: identifier should follow class name",
-        "ERROR_EXPECTING_WHERE=query syntax error: 'where' clause expected after 'from' clause",
-        "ERROR_EMPTY_WHERE=query syntax error: 'where' clause cannot have empty expression"
-    })
     public OQLQuery parseQuery(String query) throws OQLException {
         StringTokenizer st = new StringTokenizer(query);
         if (st.hasMoreTokens()) {
@@ -128,7 +113,7 @@ public class OQLEngineImpl {
                 return null;
             }
         } else {
-            throw new OQLException(Bundle.ERROR_NO_SELECT_CLAUSE());
+            throw new OQLException("query syntax error: no 'select' clause");
         }
 
         String selectExpr = ""; // NOI18N
@@ -143,7 +128,7 @@ public class OQLEngineImpl {
         }
 
         if (selectExpr.isEmpty()) { // NOI18N
-            throw new OQLException(Bundle.ERROR_EMPTY_SELECT());
+            throw new OQLException("query syntax error: 'select' expression can not be empty");
         }
 
         String className = null;
@@ -157,25 +142,25 @@ public class OQLEngineImpl {
                 if (tmp.equals("instanceof")) { // NOI18N
                     isInstanceOf = true;
                     if (!st.hasMoreTokens()) {
-                        throw new OQLException(Bundle.ERROR_INSTANCEOF_NO_CLASSNAME());
+                        throw new OQLException("no class name after 'instanceof'");
                     }
                     className = st.nextToken();
                 } else {
                     className = tmp;
                 }
             } else {
-                throw new OQLException(Bundle.ERROR_FROM_NO_CLASSNAME());
+                throw new OQLException("query syntax error: class name must follow 'from'");
             }
 
             if (st.hasMoreTokens()) {
                 identifier = st.nextToken();
                 if (identifier.equals("where")) { // NOI18N
-                    throw new OQLException(Bundle.ERROR_NO_IDENTIFIER());
+                    throw new OQLException("query syntax error: identifier should follow class name");
                 }
                 if (st.hasMoreTokens()) {
                     String tmp = st.nextToken();
                     if (!tmp.equals("where")) { // NOI18N
-                        throw new OQLException(Bundle.ERROR_EXPECTING_WHERE());
+                        throw new OQLException("query syntax error: 'where' clause expected after 'from' clause");
                     }
 
                     whereExpr = "";  // NOI18N
@@ -183,11 +168,11 @@ public class OQLEngineImpl {
                         whereExpr += " " + st.nextToken(); // NOI18N
                     }
                     if (whereExpr.isEmpty()) { // NOI18N
-                        throw new OQLException(Bundle.ERROR_EMPTY_WHERE());
+                        throw new OQLException("query syntax error: 'where' clause cannot have empty expression");
                     }
                 }
             } else {
-                throw new OQLException(Bundle.ERROR_NO_IDENTIFIER());
+                throw new OQLException("query syntax error: identifier should follow class name");
             }
         }
         return new OQLQueryImpl(selectExpr, isInstanceOf, className, identifier, whereExpr);
@@ -380,8 +365,7 @@ public class OQLEngineImpl {
     private void init(Snapshot snapshot) throws RuntimeException {
         this.snapshot = snapshot;
         try {
-            ScriptEngineManager manager = Scripting.createManager();
-            engine = manager.getEngineByName("JavaScript"); // NOI18N
+            engine = new ScriptEngineManager().getEngineByName("JavaScript"); // NOI18N
             InputStream strm = getInitStream();
             CompiledScript cs = ((Compilable)engine).compile(new InputStreamReader(strm));
             cs.eval();

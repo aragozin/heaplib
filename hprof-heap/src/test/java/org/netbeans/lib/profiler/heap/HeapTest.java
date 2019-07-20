@@ -18,9 +18,11 @@
  */
 package org.netbeans.lib.profiler.heap;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
 import java.io.BufferedOutputStream;
-import java.util.Map;
-import java.util.Date;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -35,19 +37,21 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Properties;
 import java.util.TimeZone;
+
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assume;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import static org.junit.Assert.*;
 
 /**
  *
@@ -353,7 +357,7 @@ public class HeapTest {
     @SuppressWarnings("resource")
     private void compareTextFiles(File goledFile, File outFile) throws IOException {
         InputStreamReader goldenIsr = new InputStreamReader(new FileInputStream(goledFile), "UTF-8");
-		LineNumberReader goldenReader = new LineNumberReader(goldenIsr);
+        LineNumberReader goldenReader = new LineNumberReader(goldenIsr);
         InputStreamReader isr = new InputStreamReader(new FileInputStream(outFile), "UTF-8");
         LineNumberReader reader = new LineNumberReader(isr);
         String goldenLine = "";

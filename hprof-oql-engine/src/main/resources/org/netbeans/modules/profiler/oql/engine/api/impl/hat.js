@@ -33,13 +33,13 @@ var snapshot;
 /**
  * This is JavaScript interface for heap analysis using HAT
  * (Heap Analysis Tool). HAT classes are refered from
- * this file. In particular, refer to classes in hat.model 
+ * this file. In particular, refer to classes in hat.model
  * package.
- * 
+ *
  * HAT model objects are wrapped as convenient script objects so that
  * fields may be accessed in natural syntax. For eg. Java fields can be
  * accessed with obj.field_name syntax and array elements can be accessed
- * with array[index] syntax. 
+ * with array[index] syntax.
  */
 
 // returns an enumeration that wraps elements of
@@ -94,7 +94,7 @@ function filterEnumeration(e, func, wrap) {
             next = undefined;
             return res;
         },
-        
+
         remove: function() {
             throw "NotSupportedOperation";
         }
@@ -183,7 +183,7 @@ function wrapField(javaField) {
     }
 }
 
-function JavaClassProto() {    
+function JavaClassProto() {
     function jclass(obj) {
         return obj['wrapped-object'];
     }
@@ -203,7 +203,7 @@ function JavaClassProto() {
 
     // return whether given class is superclass of this class or not
     this.isSuperclassOf = function(other) {
-        return other.isSubclassOf(this); 
+        return other.isSubclassOf(this);
     }
 
     // includes direct and indirect superclasses
@@ -241,7 +241,7 @@ function JavaClassProto() {
         return wrapIterator(jclass(this).instances.iterator(), true)
     }
 
-    this.toString = function() { 
+    this.toString = function() {
         return jclass(this).toString();
     }
 }
@@ -286,8 +286,8 @@ function wrapJavaValue(thing) {
     }
 }
 
-// HAT Java model object wrapper. Handles all cases 
-// (instance, object/primitive array and Class objects)	
+// HAT Java model object wrapper. Handles all cases
+// (instance, object/primitive array and Class objects)
 function javaObject(jobject) {
     //        print(jobject.getClass());
     if (jobject instanceof JavaClass) {
@@ -369,7 +369,7 @@ function JavaObjectWrapper(instance) {
                 return undefined;
             }
         }
-    }				
+    }
 }
 
 // return wrapper for Java Class objects
@@ -377,7 +377,7 @@ function JavaClassWrapper(jclass) {
     var static_fields = jclass.staticFieldValues;
     var fldValueCache = new Array();
 
-    // to access static fields of given Class cl, use 
+    // to access static fields of given Class cl, use
     // cl.statics.<static-field-name> syntax
     this.statics = new JSAdapter() {
         __getIds__ : function() {
@@ -392,7 +392,7 @@ function JavaClassWrapper(jclass) {
             for (var i=0;i<static_fields.size();i++) {
                 if (name == static_fields.get(i).field.name) {
                     return true;
-                }					
+                }
             }
         },
         __get__ : function(name) {
@@ -475,7 +475,7 @@ function JavaObjectArrayWrapper(array) {
                 return array;
             } else {
                 return undefined;
-            }				
+            }
         },
         __call__: function(name) {
             if (name == 'toString') {
@@ -484,7 +484,7 @@ function JavaObjectArrayWrapper(array) {
                 return undefined;
             }
         }
-    }		
+    }
 }
 
 // returns wrapper for Java primitive arrays
@@ -543,7 +543,7 @@ function JavaValueArrayWrapper(array) {
 // wrap Java object with appropriate script object
 function wrapJavaObject(thing) {
     if (thing == null) return null;
-    
+
     return javaObject(thing);
 }
 
@@ -551,7 +551,7 @@ function wrapJavaObject(thing) {
 function unwrapJavaObject(jobject) {
     //    print("Unwrapping object");
     //    print(typeof(jobject));
-    
+
     if (!(jobject instanceof Instance)) {
         if (jobject instanceof Array) {
             //            print("Object is array");
@@ -562,7 +562,7 @@ function unwrapJavaObject(jobject) {
             }
             return arr.toArray();
         }
-        
+
         try {
             //            print(typeof(jobject));
             var orig = jobject;
@@ -611,7 +611,7 @@ function unwrapJavaObjectRes(jobject) {
 
 /**
  * The result object supports the following methods:
- * 
+ *
  *  forEachClass  -- calls a callback for each Java Class
  *  forEachObject -- calls a callback for each Java object
  *  findClass -- finds Java Class of given name
@@ -621,7 +621,7 @@ function unwrapJavaObjectRes(jobject) {
  *  reachables -- returns all objects reachable from a given object
  *  livepaths -- returns an array of live paths because of which an
  *               object alive.
- *  describeRef -- returns description for a reference from a 'from' 
+ *  describeRef -- returns description for a reference from a 'from'
  *              object to a 'to' object.
  */
 function wrapHeapSnapshot(heap) {
@@ -646,8 +646,8 @@ function wrapHeapSnapshot(heap) {
 
         /**
          * Class iteration: Calls callback function for each
-         * Java Class in the heap. Default callback function 
-         * is 'print'. If callback returns true, the iteration 
+         * Java Class in the heap. Default callback function
+         * is 'print'. If callback returns true, the iteration
          * is stopped.
          *
          * @param callback function to be called.
@@ -679,11 +679,11 @@ function wrapHeapSnapshot(heap) {
 
         /**
          * Object iteration: Calls callback function for each
-         * Java Object in the heap. Default callback function 
-         * is 'print'.If callback returns true, the iteration 
+         * Java Object in the heap. Default callback function
+         * is 'print'.If callback returns true, the iteration
          * is stopped.
          *
-         * @param callback function to be called. 
+         * @param callback function to be called.
          * @param clazz Class whose objects are retrieved.
          *        Optional, default is 'java.lang.Object'
          * @param includeSubtypes flag to tell if objects of subtypes
@@ -704,17 +704,17 @@ function wrapHeapSnapshot(heap) {
             }
         },
 
-        /** 
+        /**
          * Returns an enumeration of Java objects in the heap.
-         * 
+         *
          * @param clazz Class whose objects are retrieved.
          *        Optional, default is 'java.lang.Object'
          * @param includeSubtypes flag to tell if objects of subtypes
          *        are included or not. optional, default is true.
          * @param where (optional) filter expression or function to
          *        filter the objects. The expression has to return true
-         *        to include object passed to it in the result array. 
-         *        Built-in variable 'it' refers to the current object in 
+         *        to include object passed to it in the result array.
+         *        Built-in variable 'it' refers to the current object in
          *        filter expression.
          */
         objects: function(clazz, includeSubtypes, where) {
@@ -738,7 +738,7 @@ function wrapHeapSnapshot(heap) {
 
         /**
          * Find Java Class of given name.
-         * 
+         *
          * @param name class name
          */
         findClass: function(name) {
@@ -763,10 +763,10 @@ function wrapHeapSnapshot(heap) {
             var tmp = this.snapshot.getFinalizerObjects();
             return wrapperIterator(tmp);
         },
- 
+
         /**
          * Returns an array that contains objects referred from the
-         * given Java object directly or indirectly (i.e., all 
+         * given Java object directly or indirectly (i.e., all
          * transitively referred objects are returned).
          *
          * @param jobject Java object whose reachables are returned.
@@ -776,7 +776,7 @@ function wrapHeapSnapshot(heap) {
         },
 
         /**
-         * Returns array of paths of references by which the given 
+         * Returns array of paths of references by which the given
          * Java object is live. Each path itself is an array of
          * objects in the chain of references. Each path supports
          * toHtml method that returns html description of the path.
@@ -806,7 +806,7 @@ function wrapHeapSnapshot(heap) {
                     var desc = root.description;
                     if (root.referer) {
                         var ref = root.referer;
-                        desc += " (from " + 
+                        desc += " (from " +
                         (html? toHtml(ref) : ref.toString()) + ')';
                     }
                     desc += '->';
@@ -816,7 +816,7 @@ function wrapHeapSnapshot(heap) {
                         var obj = tmp.obj;
                         desc += html? toHtml(obj) : obj.toString();
                         if (next != null) {
-                            desc += " (" + 
+                            desc += " (" +
                             obj.describeReferenceTo(next.obj, heap)  +
                             ") ->";
                         }
@@ -901,10 +901,13 @@ function wrapHeapSnapshot(heap) {
  */
 function allocTrace(jobject) {
     try {
-        jobject = unwrapJavaObject(jobject);			
+        jobject = unwrapJavaObject(jobject);
         var trace = jobject.allocatedFrom;
         return (trace != null) ? trace.frames : null;
     } catch (e) {
+        if ("org.netbeans.lib.profiler.heap.HeapOperationUnsupportedException" == e) {
+            throw e;
+        }
         print("allocTrace: " + jobject + ", " + e);
         return null;
     }
@@ -922,7 +925,7 @@ function classof(jobject) {
 
 /**
  * Find referers (a.k.a in-coming references). Calls callback
- * for each referrer of the given Java object. If the callback 
+ * for each referrer of the given Java object. If the callback
  * returns true, the iteration is stopped.
  *
  * @param callback function to call for each referer
@@ -985,10 +988,10 @@ function objectid(jobject) {
 function printAllocTrace(jobject) {
     var frames = this.allocTrace(jobject);
     if (frames == null || frames.length == 0) {
-        print("allocation site trace unavailable for " + 
+        print("allocation site trace unavailable for " +
             objectid(jobject));
         return;
-    }    
+    }
     print(objectid(jobject) + " was allocated at ..");
     for (var i in frames) {
         var frame = frames[i];
@@ -1014,6 +1017,9 @@ function referrers(jobject, weak) {
         jobject = unwrapJavaObject(jobject);
         return wrapIterator(this.snapshot.getReferrers(jobject, weak));
     } catch (e) {
+        if ("org.netbeans.lib.profiler.heap.HeapOperationUnsupportedException" == e) {
+            throw e;
+        }
         print("referrers: " + jobject + ", " + e);
         return emptyEnumeration;
     }
@@ -1034,6 +1040,9 @@ function referees(jobject, weak) {
         jobject = unwrapJavaObject(jobject);
         return wrapIterator(this.snapshot.getReferees(jobject, weak));
     } catch (e) {
+        if ("org.netbeans.lib.profiler.heap.HeapOperationUnsupportedException" == e) {
+            throw e;
+        }
         print("referees: " + jobject + ", " + e);
         return emptyEnumeration;
     }
@@ -1041,11 +1050,11 @@ function referees(jobject, weak) {
 
 /**
  * Returns an array that contains objects referred from the
- * given Java object directly or indirectly (i.e., all 
+ * given Java object directly or indirectly (i.e., all
  * transitively referred objects are returned).
  *
  * @param jobject Java object whose reachables are returned.
- * @param excludes optional comma separated list of fields to be 
+ * @param excludes optional comma separated list of fields to be
  *                 removed in reachables computation. Fields are
  *                 written as class_name.field_name form.
  */
@@ -1058,7 +1067,7 @@ function reachables(jobject, excludes) {
         while (st.hasMoreTokens() && !cancelled.get()) {
             excludedFields[excludedFields.length] = st.nextToken().trim();
         }
-        if (excludedFields.length > 0) { 
+        if (excludedFields.length > 0) {
             excludes = new ReachableExcludes() {
                 isExcluded: function (field) {
                     for (var index in excludedFields) {
@@ -1103,6 +1112,9 @@ function refers(from, to) {
             }
         }
     } catch (e) {
+        if ("org.netbeans.lib.profiler.heap.HeapOperationUnsupportedException" == e) {
+            throw e;
+        }
         print("refers: " + from + ", " + e);
     }
     return false;
@@ -1120,6 +1132,9 @@ function root(jobject) {
         var root = wrapRoot(snapshot.findRoot(jobject));
         return root;
     } catch (e) {
+        if ("org.netbeans.lib.profiler.heap.HeapOperationUnsupportedException" == e) {
+            throw e;
+        }
         return null;
     }
 }
@@ -1172,11 +1187,11 @@ function rsizeof(jobject) {
 function toHtml(obj) {
     if (obj == null) {
         return "null";
-    } 
+    }
 
     if (obj == undefined) {
         return "undefined";
-    } 
+    }
     //print("tohtml "+typeof(obj));
     var tmp = unwrapJavaObject(obj);
     if (tmp != undefined) {
@@ -1209,7 +1224,7 @@ function toHtml(obj) {
                     res += ", ";
                 }
                 if (cancelled.get()) break;
-            } 
+            }
             res += " ]";
             return res;
         } else {
@@ -1242,7 +1257,7 @@ function toHtml(obj) {
                 res += toHtml(obj.nextElement()) + ", ";
             }
             res += "]";
-            return res; 
+            return res;
         } else {
             //print("B");
             return obj.toString().replace("<", "&lt;").replace(">", "&gt;");
@@ -1251,9 +1266,9 @@ function toHtml(obj) {
 }
 
 /*
- * Generic array/iterator/enumeration [or even object!] manipulation 
+ * Generic array/iterator/enumeration [or even object!] manipulation
  * functions. These functions accept an array/iteration/enumeration
- * and expression String or function. These functions iterate each 
+ * and expression String or function. These functions iterate each
  * element of array and apply the expression/function on each element.
  */
 
@@ -1290,7 +1305,7 @@ function wrapIterator(itr, wrap) {
  * @param obj enumeration/iterator/object
  * @return array that contains values of enumeration/iterator/object
  */
-function toArray(obj) {	
+function toArray(obj) {
     obj = wrapIterator(obj);
     if (obj instanceof java.util.Enumeration) {
         var res = new Array();
@@ -1356,15 +1371,15 @@ function top(array, code, num) {
 }
 
 /**
- * Returns whether the given array/iterator/enumeration contains 
- * an element that satisfies the given boolean expression specified 
- * in code. 
+ * Returns whether the given array/iterator/enumeration contains
+ * an element that satisfies the given boolean expression specified
+ * in code.
  *
  * @param array input array/iterator/enumeration that is iterated
- * @param code  expression string or function 
+ * @param code  expression string or function
  * @return boolean result
  *
- * The code evaluated can refer to the following built-in variables. 
+ * The code evaluated can refer to the following built-in variables.
  *
  * 'it' -> currently visited element
  * 'index' -> index of the current element
@@ -1419,12 +1434,12 @@ function concat(array1, array2) {
 }
 
 /**
- * Returns the number of array/iterator/enumeration elements 
- * that satisfy the given boolean expression specified in code. 
- * The code evaluated can refer to the following built-in variables. 
+ * Returns the number of array/iterator/enumeration elements
+ * that satisfy the given boolean expression specified in code.
+ * The code evaluated can refer to the following built-in variables.
  *
  * @param array input array/iterator/enumeration that is iterated
- * @param code  expression string or function 
+ * @param code  expression string or function
  * @return number of elements
  *
  * 'it' -> currently visited element
@@ -1463,13 +1478,13 @@ function count(array, code) {
 }
 
 /**
- * filter function returns an array/enumeration that contains 
- * elements of the input array/iterator/enumeration that satisfy 
- * the given boolean expression. The boolean expression code can 
- * refer to the following built-in variables. 
+ * filter function returns an array/enumeration that contains
+ * elements of the input array/iterator/enumeration that satisfy
+ * the given boolean expression. The boolean expression code can
+ * refer to the following built-in variables.
  *
  * @param array input array/iterator/enumeration that is iterated
- * @param code  expression string or function 
+ * @param code  expression string or function
  * @return array/enumeration that contains the filtered elements
  *
  * 'it' -> currently visited element
@@ -1510,11 +1525,11 @@ function length(array) {
     var length = array.length;
 
     if (length != undefined) return length;
-    
+
     if (array instanceof java.util.Enumeration) {
         var cnt = 0;
         while (array.hasMoreElements()) {
-            array.nextElement(); 
+            array.nextElement();
             cnt++;
         }
         return cnt;
@@ -1530,10 +1545,10 @@ function length(array) {
 /**
  * Transforms the given object or array by evaluating given code
  * on each element of the object or array. The code evaluated
- * can refer to the following built-in variables. 
+ * can refer to the following built-in variables.
  *
  * @param array input array/iterator/enumeration that is iterated
- * @param code  expression string or function 
+ * @param code  expression string or function
  * @return array/enumeration that contains mapped values
  *
  * 'it' -> currently visited element
@@ -1541,7 +1556,7 @@ function length(array) {
  * 'array' -> array that is being iterated
  * 'result' -> result array
  *
- * map function returns an array/enumeration of values created 
+ * map function returns an array/enumeration of values created
  * by repeatedly calling code on each element of the input
  * array/iterator/enumeration.
  */
@@ -1609,7 +1624,7 @@ function minmax(array, code) {
                 res = array[index];
             }
             if (cancelled.get()) break;
-        } 
+        }
         return res;
     }
 }
@@ -1623,7 +1638,7 @@ function minmax(array, code) {
  */
 function max(array, code) {
     if (code == undefined) {
-        code = function (lhs, rhs) { 
+        code = function (lhs, rhs) {
             return lhs > rhs;
         }
     }
@@ -1639,10 +1654,10 @@ function max(array, code) {
  */
 function min(array, code) {
     if (code == undefined) {
-        code = function (lhs, rhs) { 
+        code = function (lhs, rhs) {
             return lhs < rhs;
         }
-    } 
+    }
     return minmax(array, code);
 }
 
@@ -1652,8 +1667,8 @@ function min(array, code) {
  * numerical sort is done.
  *
  * @param array input array/iterator/enumeration that is sorted
- * @param code  expression string or function 
- * @return sorted array 
+ * @param code  expression string or function
+ * @return sorted array
  *
  * The comparison expression can refer to the following
  * built-in variables:
@@ -1664,11 +1679,11 @@ function min(array, code) {
 function sort(array, code) {
     // we need an array to sort, so convert non-arrays
     array = toArray(array);
-    
+
     // by default use numerical comparison
     var func = code;
     if (code == undefined) {
-        func = function(lhs, rhs) { 
+        func = function(lhs, rhs) {
             return lhs - rhs;
         };
     } else if (typeof(code) == 'string') {
@@ -1704,7 +1719,7 @@ function sum(array, code) {
 }
 
 /**
- * Returns array of unique elements from the given input 
+ * Returns array of unique elements from the given input
  * array/iterator/enumeration.
  *
  * @param array from which unique elements are returned.

@@ -28,20 +28,25 @@ import java.io.IOException;
  * @author Tomas Hurka
  */
 class CacheDirectory {
-    
-    private static final String DIR_EXT = ".hwcache";   // NOI18N
-    private static final String DUMP_AUX_FILE = "NBProfiler.nphd";   // NOI18N
-    
+
+    private static final String DIR_EXT = ".hwcache"; // NOI18N
+    private static final String DUMP_AUX_FILE = "NBProfiler.nphd"; // NOI18N
+
     private File cacheDirectory;
-    
+    private String name;
+
     static CacheDirectory getHeapDumpCacheDirectory(File heapDump) {
         String dumpName = heapDump.getName();
         File parent = heapDump.getParentFile();
-        File dir = new File(parent, dumpName+DIR_EXT);
-        return new CacheDirectory(dir);
+        File dir = new File(parent, dumpName + DIR_EXT);
+        return new CacheDirectory(dir, heapDump.getName());
     }
-    
-    CacheDirectory(File cacheDir) {
+
+    static CacheDirectory getTemporaryDumpCacheDirectory(File heapDump) {
+        return new CacheDirectory(null, heapDump.getName());
+    }
+
+    CacheDirectory(File cacheDir, String name) {
         cacheDirectory = cacheDir;
         if (cacheDir != null) {
             if (!cacheDir.exists()) {
@@ -51,27 +56,27 @@ class CacheDirectory {
             }
         }
         if (cacheDirectory != null) {
-            assert cacheDirectory.isDirectory() && cacheDirectory.canRead() && cacheDirectory.canWrite();            
+            assert cacheDirectory.isDirectory() && cacheDirectory.canRead() && cacheDirectory.canWrite();
         }
     }
-    
+
     File createTempFile(String prefix, String suffix) throws IOException {
         File newFile;
-        
+
         if (isTemporary()) {
-            newFile = File.createTempFile(prefix, suffix);
+            newFile = File.createTempFile(prefix + "_" + name, suffix);
             newFile.deleteOnExit();
         } else {
             newFile = File.createTempFile(prefix, suffix, cacheDirectory);
         }
         return newFile;
     }
-    
+
     File getHeapDumpAuxFile() {
         assert !isTemporary();
         return new File(cacheDirectory, DUMP_AUX_FILE);
     }
-    
+
     boolean isTemporary() {
         return cacheDirectory == null;
     }
@@ -99,20 +104,20 @@ class CacheDirectory {
         if (isFileR(f)) {
             return f;
         }
-        throw new FileNotFoundException(fileName);        
+        throw new FileNotFoundException(fileName);
     }
-    
+
     private static boolean isFileR(File f) {
         return f.exists() && f.isFile() && f.canRead();
     }
-    
+
     private static boolean isFileRW(File f) {
         return isFileR(f) && f.canWrite();
     }
 
     @SuppressWarnings("unused")
-	private static boolean isLinux() {
-        String osName = System.getProperty("os.name");  // NOI18N
+    private static boolean isLinux() {
+        String osName = System.getProperty("os.name"); // NOI18N
 
         return osName.endsWith("Linux"); // NOI18N
     }

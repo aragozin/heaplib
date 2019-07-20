@@ -25,7 +25,7 @@ import java.io.IOException;
 public class NullCacheDirectory extends CacheDirectory {
 
 	public NullCacheDirectory() {
-		super(null);
+		super(null, "Null cache");
 	}
 
 	@Override
