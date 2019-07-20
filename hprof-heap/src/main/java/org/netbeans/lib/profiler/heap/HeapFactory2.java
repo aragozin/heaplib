@@ -37,7 +37,6 @@ import org.gridkit.jvmtool.heapdump.io.ByteBufferPageManager;
 import org.gridkit.jvmtool.heapdump.io.CompressdHprofByteBuffer;
 import org.gridkit.jvmtool.heapdump.io.PagedFileHprofByteBuffer;
 
-
 public class HeapFactory2 {
 
     public static final long DEFAULT_BUFFER = 128 << 20;
@@ -54,10 +53,20 @@ public class HeapFactory2 {
      * Fast {@link Heap} implementation is optimized for batch processing of dump.
      * Unlike normal {@link Heap} it doesn't create/use any temporary files.
      *
-     * @param bufferSize if file can be mapped to memory no buffer would be used, otherwise limits memory used for buffering
+     * @param bufferSize
+     *            if file can be mapped to memory no buffer would be used, otherwise
+     *            limits memory used for buffering
      */
     public static Heap createFastHeap(File heapDump, long bufferSize) throws FileNotFoundException, IOException {
         return new FastHprofHeap(createBuffer(heapDump, bufferSize), 0);
+    }
+
+    /**
+     * Open {@link FastHprofHeap} implementation in writeable mode. This mode allows
+     * to modify heap content on disk. See {@link PatchableCharArray} for details.
+     */
+    public static Heap createWriteableHeap(File heapDump) throws FileNotFoundException, IOException {
+        return new FastHprofHeap(createHprofByteBuffer(heapDump, -1, true), 0, true);
     }
 
     public static boolean isCompressed(File heapDump) {
@@ -70,8 +79,7 @@ public class HeapFactory2 {
             if (isGZIP(heapDump)) {
                 return false;
             }
-        }
-        catch(NoClassDefFoundError e) {
+        } catch (NoClassDefFoundError e) {
             // GZip parser is not available
         }
 
@@ -79,36 +87,31 @@ public class HeapFactory2 {
             FileInputStream fis = new FileInputStream(heapDump);
             FileChannel channel = fis.getChannel();
             long length = channel.size();
-            int bufCount = (int)((length + ((1 << 30) - 1)) >> 30);
+            int bufCount = (int) ((length + ((1 << 30) - 1)) >> 30);
             MappedByteBuffer[] buffers = new MappedByteBuffer[bufCount];
             try {
-                for(int i = 0; i != bufCount; ++i) {
-                    long rm = length - (((long)i) << 30);
-                    buffers[i] = channel.map(FileChannel.MapMode.READ_ONLY, ((long)i) << 30, Math.min(rm, 1 << 30));
+                for (int i = 0; i != bufCount; ++i) {
+                    long rm = length - (((long) i) << 30);
+                    buffers[i] = channel.map(FileChannel.MapMode.READ_ONLY, ((long) i) << 30, Math.min(rm, 1 << 30));
                 }
                 return true;
-            }
-            catch(Exception e) {
+            } catch (Exception e) {
                 // ignore
-            }
-            finally {
+            } finally {
                 try {
                     channel.close();
-                }
-                catch(Exception e) {
+                } catch (Exception e) {
                     // ignore
                 }
                 try {
                     fis.close();
-                }
-                catch(Exception e) {
+                } catch (Exception e) {
                     // ignore
                 }
-                for(MappedByteBuffer mb: buffers) {
+                for (MappedByteBuffer mb : buffers) {
                     try {
                         callCleaner(mb);
-                    }
-                    catch(Exception e) {
+                    } catch (Exception e) {
                         // ignore
                     }
                 }
@@ -142,7 +145,7 @@ public class HeapFactory2 {
     }
 
     private static Method getMethod(Class<?> c, String method) {
-        for(Method m: c.getDeclaredMethods()) {
+        for (Method m : c.getDeclaredMethods()) {
             if (m.getName().equals(method)) {
                 return m;
             }
@@ -163,12 +166,14 @@ public class HeapFactory2 {
             // GZip parser is not available
         }
 
-        HprofByteBuffer bb = HeapFactory2.createHprofByteBuffer(heapDump, bufferSize);
+        HprofByteBuffer bb = HeapFactory2.createHprofByteBuffer(heapDump, bufferSize, false);
         return bb;
     }
 
-    private static HprofByteBuffer createCompressedHprofBuffer(File heapDump, long bufferSize) throws IOException, FileNotFoundException {
-        return new CompressdHprofByteBuffer(new RandomAccessFile(heapDump, "r"), new ByteBufferPageManager(512 << 10, bufferSize));
+    private static HprofByteBuffer createCompressedHprofBuffer(File heapDump, long bufferSize)
+            throws IOException, FileNotFoundException {
+        return new CompressdHprofByteBuffer(new RandomAccessFile(heapDump, "r"),
+                new ByteBufferPageManager(512 << 10, bufferSize));
     }
 
     private static boolean isGZIP(File headDump) {
@@ -189,7 +194,8 @@ public class HeapFactory2 {
         return false;
     }
 
-    static HprofByteBuffer createHprofByteBuffer(File dumpFile, long bufferSize)
+
+    static HprofByteBuffer createHprofByteBuffer(File dumpFile, long bufferSize, boolean writeable)
                                           throws IOException {
         long fileLen = dumpFile.length();
 
@@ -200,53 +206,64 @@ public class HeapFactory2 {
 
         try {
             if (fileLen < Integer.MAX_VALUE) {
-                return new HprofMappedByteBuffer(dumpFile);
+                return new HprofMappedByteBuffer(dumpFile, writeable);
             } else {
-                return new HprofLongMappedByteBuffer(dumpFile);
+                return new HprofLongMappedByteBuffer(dumpFile, writeable);
             }
         } catch (IOException ex) {
             if (ex.getCause() instanceof OutOfMemoryError) { // can happen on 32bit Windows, since there is only 2G for memory mapped data for whole java process.
-                return new PagedFileHprofByteBuffer(new RandomAccessFile(dumpFile, "r"), new ByteBufferPageManager(1 << 20, 1 << 20, bufferSize));
+                if (writeable) {
+                    throw ex;
+                }
+                else {
+                    return new PagedFileHprofByteBuffer(new RandomAccessFile(dumpFile, "r"), new ByteBufferPageManager(1 << 20, 1 << 20, bufferSize));
+                }
             }
-            else {
-                throw ex;
-            }
+
+            throw ex;
         }
     }
 
     /**
-     * this factory method creates {@link Heap} from a memory dump file in Hprof format.
-     * <br>
-     * <b>This implementation is using temporary disk files for building auxiliary indexes</b>
-     * <br>
+     * this factory method creates {@link Heap} from a memory dump file in Hprof
+     * format. <br>
+     * <b>This implementation is using temporary disk files for building auxiliary
+     * indexes</b> <br>
      * Speed: slow
-     * @param heapDump file which contains memory dump
+     *
+     * @param heapDump
+     *            file which contains memory dump
      * @return implementation of {@link Heap} corresponding to the memory dump
-     * passed in heapDump parameter
-     * @throws java.io.FileNotFoundException if heapDump file does not exist
-     * @throws java.io.IOException if I/O error occurred while accessing heapDump file
+     *         passed in heapDump parameter
+     * @throws java.io.FileNotFoundException
+     *             if heapDump file does not exist
+     * @throws java.io.IOException
+     *             if I/O error occurred while accessing heapDump file
      */
     public static Heap createHeap(File heapDump) throws FileNotFoundException, IOException {
         return createHeap(heapDump, 0);
     }
 
     /**
-     * this factory method creates {@link Heap} from a memory dump file in Hprof format.
-     * If the memory dump file contains more than one dump, parameter segment is used to
-     * select particular dump.
-     * <br>
-     * <b>This implementation is using temporary disk files for building auxiliary indexes</b>
-     * <br>
+     * this factory method creates {@link Heap} from a memory dump file in Hprof
+     * format. If the memory dump file contains more than one dump, parameter
+     * segment is used to select particular dump. <br>
+     * <b>This implementation is using temporary disk files for building auxiliary
+     * indexes</b> <br>
      * Speed: slow
+     *
      * @return implementation of {@link Heap} corresponding to the memory dump
-     * passed in heapDump parameter
-     * @param segment select corresponding dump from multi-dump file
-     * @param heapDump file which contains memory dump
-     * @throws java.io.FileNotFoundException if heapDump file does not exist
-     * @throws java.io.IOException if I/O error occurred while accessing heapDump file
+     *         passed in heapDump parameter
+     * @param segment
+     *            select corresponding dump from multi-dump file
+     * @param heapDump
+     *            file which contains memory dump
+     * @throws java.io.FileNotFoundException
+     *             if heapDump file does not exist
+     * @throws java.io.IOException
+     *             if I/O error occurred while accessing heapDump file
      */
-    public static Heap createHeap(File heapDump, int segment)
-                           throws FileNotFoundException, IOException {
+    public static Heap createHeap(File heapDump, int segment) throws FileNotFoundException, IOException {
         CacheDirectory cacheDir = CacheDirectory.getTemporaryDumpCacheDirectory(heapDump);
         if (!cacheDir.isTemporary()) {
             File savedDump = cacheDir.getHeapDumpAuxFile();
@@ -255,7 +272,7 @@ public class HeapFactory2 {
                 try {
                     return loadHeap(cacheDir);
                 } catch (IOException ex) {
-                    System.err.println("Loading heap dump "+heapDump+" from cache failed.");
+                    System.err.println("Loading heap dump " + heapDump + " from cache failed.");
                     ex.printStackTrace(System.err);
                 }
             }
@@ -265,7 +282,7 @@ public class HeapFactory2 {
     }
 
     public static Heap createHeap(File heapDump, File auxDir) throws FileNotFoundException, IOException {
-	return createHeap(heapDump, 0, auxDir);
+        return createHeap(heapDump, 0, auxDir);
     }
 
     public static Heap createHeap(File heapDump, int segment, File auxDir) throws FileNotFoundException, IOException {
@@ -285,10 +302,9 @@ public class HeapFactory2 {
         return new HprofHeap(heapDump, segment, cacheDir);
     }
 
-    static Heap loadHeap(CacheDirectory cacheDir)
-                           throws FileNotFoundException, IOException {
+    static Heap loadHeap(CacheDirectory cacheDir) throws FileNotFoundException, IOException {
         File savedDump = cacheDir.getHeapDumpAuxFile();
-        InputStream is = new BufferedInputStream(new FileInputStream(savedDump), 64*1024);
+        InputStream is = new BufferedInputStream(new FileInputStream(savedDump), 64 * 1024);
         DataInputStream dis = new DataInputStream(is);
         Heap heap = new HprofHeap(dis, cacheDir);
         dis.close();

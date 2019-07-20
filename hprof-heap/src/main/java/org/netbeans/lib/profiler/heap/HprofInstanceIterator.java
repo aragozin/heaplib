@@ -20,7 +20,7 @@ import java.util.NoSuchElementException;
 
 /**
  * All heap instances iterator, scanning heap returning every instance.
- * 
+ *
  * @author Alexey Ragozin (alexey.ragozin@gmail.com)
  */
 class HprofInstanceIterator implements Iterator<Instance> {
@@ -91,7 +91,7 @@ class HprofInstanceIterator implements Iterator<Instance> {
 //                        System.err.print(" ID:" + instance.getInstanceId());
 //                    } else if (tag == HprofHeap.OBJECT_ARRAY_DUMP) {
 //                        jc = (ClassDump) heap.getJavaClassByName("java.lang.Object[]");
-//                        ObjectArrayInstance instance = new ObjectArrayDump(jc, start);  
+//                        ObjectArrayInstance instance = new ObjectArrayDump(jc, start);
 //                        System.err.print(" ID:" + instance.getInstanceId() + " array length: " + instance.getLength());
 //                    } else if (tag == HprofHeap.PRIMITIVE_ARRAY_DUMP) {
 //                        System.err.print(" PRIMITIVE_ARRAY");
@@ -103,14 +103,14 @@ class HprofInstanceIterator implements Iterator<Instance> {
 //                System.err.println(" dump size: " + (pointer[0] - start));
                 continue;
             }
-            
+
             Instance instance = null;
             if (tag == HprofHeap.INSTANCE_DUMP) {
                 instance = new InstanceDump(jc, start);
             } else if (tag == HprofHeap.OBJECT_ARRAY_DUMP) {
-                instance = new ObjectArrayDump(jc, start);   
+                instance = new ObjectArrayDump(jc, start);
             } else if (tag == HprofHeap.PRIMITIVE_ARRAY_DUMP) {
-                instance = new PrimitiveArrayDump(jc, start);
+                instance = PrimitiveArrayDump.create(jc, start);
             } else {
                 // ignore
                 continue;

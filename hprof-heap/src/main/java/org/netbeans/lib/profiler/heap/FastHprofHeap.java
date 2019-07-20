@@ -31,7 +31,7 @@ import org.gridkit.jvmtool.heapdump.MissingInstance;
 public class FastHprofHeap extends HprofHeap {
 
     public static HprofByteBuffer newFileBuffer(File file) throws IOException {
-        return HeapFactory2.createHprofByteBuffer(file, HeapFactory.DEFAULT_BUFFER);
+        return HeapFactory2.createHprofByteBuffer(file, HeapFactory.DEFAULT_BUFFER, false);
     }
 
     private Map<Long, ClassEntry> classes;
@@ -51,7 +51,14 @@ public class FastHprofHeap extends HprofHeap {
      * Please use {@link HeapFactory2}
      */
     protected FastHprofHeap(HprofByteBuffer dumpBuffer, int seg) throws FileNotFoundException, IOException {
-        super(dumpBuffer, seg);
+    	this(dumpBuffer, seg, false);
+    }
+
+    /**
+     * Please use {@link HeapFactory2}
+     */
+    protected FastHprofHeap(HprofByteBuffer dumpBuffer, int seg, boolean writeable) throws FileNotFoundException, IOException {
+        super(dumpBuffer, seg, writeable);
         classes = new HashMap<Long, ClassEntry>();
         offsetMap = new HeapOffsetMap(this);
     }
@@ -132,7 +139,7 @@ public class FastHprofHeap extends HprofHeap {
 			if (tag == PRIMITIVE_ARRAY_DUMP) {
 			    classDump = classDumpBounds.getPrimitiveArrayClass(dumpBuffer.get(start + 1 + classIdOffset));
 
-			    return new PrimitiveArrayDump(classDump, start);
+			    return PrimitiveArrayDump.create(classDump, start);
 			} else {
 			    long classId = dumpBuffer.getID(start + 1 + classIdOffset);
 			    classDump = classDumpBounds.getClassDumpByID(classId);

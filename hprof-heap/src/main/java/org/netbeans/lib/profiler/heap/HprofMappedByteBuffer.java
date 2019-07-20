@@ -20,8 +20,8 @@
 package org.netbeans.lib.profiler.heap;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 
@@ -30,60 +30,87 @@ import java.nio.channels.FileChannel;
  *
  * @author Tomas Hurka
  */
-class HprofMappedByteBuffer extends HprofByteBuffer {
+class HprofMappedByteBuffer extends HprofByteBuffer implements PatchableHprofByteBuffer {
     //~ Instance fields ----------------------------------------------------------------------------------------------------------
 
     private MappedByteBuffer dumpBuffer;
 
     //~ Constructors -------------------------------------------------------------------------------------------------------------
 
-    @SuppressWarnings("resource")
     HprofMappedByteBuffer(File dumpFile) throws IOException {
-		FileInputStream fis = new FileInputStream(dumpFile);
-        FileChannel channel = fis.getChannel();
-        length = channel.size();
-        dumpBuffer = channel.map(FileChannel.MapMode.READ_ONLY, 0, length);
-        channel.close();
-        readHeader();
+    	this(dumpFile, false);
+    }
+
+    @SuppressWarnings("resource")
+    HprofMappedByteBuffer(File dumpFile, boolean writeable) throws IOException {
+    	RandomAccessFile file = new RandomAccessFile(dumpFile, writeable ? "rw" : "r");
+    	FileChannel channel = file.getChannel();
+    	length = channel.size();
+    	dumpBuffer = channel.map(writeable ? FileChannel.MapMode.READ_WRITE : FileChannel.MapMode.READ_ONLY, 0, length);
+    	channel.close();
+    	readHeader();
     }
 
     //~ Methods ------------------------------------------------------------------------------------------------------------------
 
-    char getChar(long index) {
+    @Override
+    public void writePatch(long index, byte[] dataPatch) {
+    	for(int i = 0; i != dataPatch.length; ++i) {
+    		dumpBuffer.put((int)index + i, dataPatch[i]);
+    	}
+    }
+
+    @Override
+    public void readPatch(long index, byte[] dataPatch) {
+    	for(int i = 0; i != dataPatch.length; ++i) {
+    		dataPatch[i] = dumpBuffer.get((int)index + i);
+    	}
+    }
+
+    @Override
+	char getChar(long index) {
         return dumpBuffer.getChar((int) index);
     }
 
-    double getDouble(long index) {
+    @Override
+	double getDouble(long index) {
         return dumpBuffer.getDouble((int) index);
     }
 
-    float getFloat(long index) {
+    @Override
+	float getFloat(long index) {
         return dumpBuffer.getFloat((int) index);
     }
 
-    int getInt(long index) {
+    @Override
+	int getInt(long index) {
         return dumpBuffer.getInt((int) index);
     }
 
-    long getLong(long index) {
+    @Override
+	long getLong(long index) {
         return dumpBuffer.getLong((int) index);
     }
 
-    short getShort(long index) {
+    @Override
+	short getShort(long index) {
         return dumpBuffer.getShort((int) index);
     }
 
     // delegate to MappedByteBuffer
-    byte get(long index) {
+    @Override
+	byte get(long index) {
         return dumpBuffer.get((int) index);
     }
 
-    synchronized void get(long position, byte[] chars) {
+    @Override
+	synchronized void get(long position, byte[] chars) {
         dumpBuffer.position((int) position);
         dumpBuffer.get(chars);
     }
-    
-    public String toString() {
+
+    @Override
+	public String toString() {
         return "Memory mapped file strategy";
     }
 }

@@ -36,6 +36,8 @@
   <modules>
     <module>hprof-heap</module>
     <module>hprof-oql-engine</module>
+    <module>jheaplib</module>
+    <module>heap-cli</module>
   </modules>
 
   <licenses>
@@ -75,12 +77,35 @@
         <artifactId>hprof-oql-engine</artifactId>
         <version>${project.version}</version>
       </dependency>
+      <dependency>
+        <groupId>org.gridkit.jvmtool</groupId>
+        <artifactId>heap-cli</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.gridkit.jvmtool</groupId>
+        <artifactId>jheaplib</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <!-- SJK CLI -->
+      <dependency>
+        <groupId>org.gridkit.jvmtool</groupId>
+        <artifactId>sjk-cli</artifactId>
+        <version>0.12</version>
+      </dependency>
 
       <!-- JVM tooling -->
       <dependency>
         <groupId>org.gridkit.lab</groupId>
         <artifactId>jvm-attach-api</artifactId>
         <version>1.4</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.fasterxml.jackson.core</groupId>
+        <artifactId>jackson-databind</artifactId>
+        <version>2.9.9.1</version>
       </dependency>
 
       <!-- 3rd party modules -->

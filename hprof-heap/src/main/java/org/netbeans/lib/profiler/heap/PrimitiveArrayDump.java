@@ -31,6 +31,20 @@ class PrimitiveArrayDump extends ArrayDump implements PrimitiveArrayInstance {
 
     private static final int charSize = 2;
 
+    static PrimitiveArrayDump create(ClassDump cls, long offset) {
+
+    	if (cls.getHprof().isWriteable()) {
+	    	HprofByteBuffer dumpBuffer = cls.getHprofBuffer();
+	        int idSize = dumpBuffer.getIDSize();
+	        byte type = dumpBuffer.get(offset + 1 + idSize + 4 + 4);
+
+	        if (type == HprofHeap.CHAR) {
+	        	return new PatchableCharArray(cls, offset);
+	        }
+    	}
+    	return new PrimitiveArrayDump(cls, offset);
+    }
+
     //~ Constructors -------------------------------------------------------------------------------------------------------------
 
     PrimitiveArrayDump(ClassDump cls, long offset) {
@@ -39,13 +53,15 @@ class PrimitiveArrayDump extends ArrayDump implements PrimitiveArrayInstance {
 
     //~ Methods ------------------------------------------------------------------------------------------------------------------
 
-    public long getSize() {
+    @Override
+	public long getSize() {
         long elementSize = dumpClass.getHprof().getValueSize(getType());
 
         return dumpClass.classDumpSegment.getMinimumInstanceSize() + HPROF_ARRAY_OVERHEAD + (elementSize * getLength());
     }
 
-    public List<Object> getValues() {
+    @Override
+	public List<Object> getValues() {
         HprofByteBuffer dumpBuffer = dumpClass.getHprofBuffer();
         HprofHeap heap = dumpClass.getHprof();
         byte type = getType();
@@ -82,13 +98,13 @@ class PrimitiveArrayDump extends ArrayDump implements PrimitiveArrayInstance {
         return bytes;
     }
 
-    private long getArrayStartOffset() {
+    long getArrayStartOffset() {
         int idSize = dumpClass.getHprofBuffer().getIDSize();
 
         return fileOffset + 1 + idSize + 4 + 4 + 1;
     }
 
-    private byte getType() {
+    byte getType() {
         HprofByteBuffer dumpBuffer = dumpClass.getHprofBuffer();
         int idSize = dumpBuffer.getIDSize();
 

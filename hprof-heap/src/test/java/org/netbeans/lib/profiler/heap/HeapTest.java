@@ -354,6 +354,11 @@ public class HeapTest {
         outFile.delete();
     }
 
+    @Test
+    public void testPrimitiveArrayLookup() {
+    	heap.getJavaClassByName("char[]");
+    }
+
     @SuppressWarnings("resource")
     private void compareTextFiles(File goledFile, File outFile) throws IOException {
         InputStreamReader goldenIsr = new InputStreamReader(new FileInputStream(goledFile), "UTF-8");

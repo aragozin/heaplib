@@ -29,6 +29,7 @@ import java.util.Set;
 import org.gridkit.jvmtool.heapdump.PathStep.Move;
 import org.netbeans.lib.profiler.heap.Field;
 import org.netbeans.lib.profiler.heap.FieldValue;
+import org.netbeans.lib.profiler.heap.Heap;
 import org.netbeans.lib.profiler.heap.Instance;
 import org.netbeans.lib.profiler.heap.JavaClass;
 import org.netbeans.lib.profiler.heap.ObjectFieldValue;
@@ -82,7 +83,7 @@ public class HeapWalker {
         CONVERTERS.put("float[]", primitiveArrayConverter);
         CONVERTERS.put("double[]", primitiveArrayConverter);
     }
-    
+
     private static PrimitiveParser BOOL_PARSER = new PrimitiveParser() {
         @Override
         public Object toValue(String x) {
@@ -138,7 +139,7 @@ public class HeapWalker {
             return Double.valueOf(x);
         }
     };
-    
+
     /**
      * Converts instances of few well know Java classes from
      * dump to normal java objects.
@@ -250,12 +251,12 @@ public class HeapWalker {
                 }
                 else {
                     for(Instance x: HeapPath.collect(i, new PathStep[]{lastStep})) {
-                        return valueOf(x);                        
+                        return valueOf(x);
                     }
                 }
-            }            
+            }
             return null;
-            
+
         } else {
             for(Instance i: HeapPath.collect(obj, steps)) {
                 return valueOf(i);
@@ -409,6 +410,17 @@ public class HeapWalker {
         }
     }
 
+    public static Iterable<Instance> walk(final Heap heap, final String path) {
+    	return new Iterable<Instance>() {
+
+			@Override
+			public Iterator<Instance> iterator() {
+				HeapIterator hi = new HeapIterator(heap, path, true);
+				return hi;
+			}
+		};
+    }
+
     public static Iterable<Instance> walk(Instance root, String path) {
         return HeapPath.collect(root, HeapPath.parsePath(path, true));
     }
@@ -422,7 +434,7 @@ public class HeapWalker {
             return null;
         }
     }
-    
+
     public static String explainPath(Instance root, String path) {
         PathStep[] chain = HeapPath.parsePath(path, true);
         StringBuilder sb = new StringBuilder();
@@ -431,12 +443,12 @@ public class HeapWalker {
             if (chain[i] instanceof TypeFilterStep) {
                 continue;
             }
-                        
+
             try {
                 Move m = chain[i].track(o).next();
 //                JavaClass hostType = hostType(o.getJavaClass(), m.pathSpec);
 //                hostType = hostType == null ? o.getJavaClass() : hostType;
-                
+
 //                sb.append("(" + shortName(hostType.getName()) + ")");
                 sb.append("(" + shortName(o.getJavaClass().getName()) + ")");
                 sb.append(m.pathSpec);
@@ -449,7 +461,7 @@ public class HeapWalker {
         }
         return sb.toString();
     }
-    
+
     @SuppressWarnings("unused")
 	private static JavaClass hostType(JavaClass type, String pathSpec) {
         if (pathSpec.startsWith(".")) {
@@ -466,7 +478,7 @@ public class HeapWalker {
         return null;
     }
 
-    
+
     public static Set<JavaClass> filterTypes(String filter, Iterable<JavaClass> types) {
         PathStep[] steps = HeapPath.parsePath("(" + filter + ")", true);
         if (steps.length != 1 || !(steps[0] instanceof TypeFilterStep)) {
@@ -491,15 +503,120 @@ public class HeapWalker {
         else {
             return name;
         }
-    }    
+    }
 
     private interface InstanceConverter {
 
         public Object convert(Instance instance);
     }
-    
+
     private interface PrimitiveParser {
-        
+
         public Object toValue(String x);
+    }
+
+    private static class HeapIterator implements Iterator<Instance> {
+
+    	private final RefSet visited;
+    	private final Set<JavaClass> classFilter;
+    	private final PathStep[] steps;
+    	private final Iterator<Instance> walker;
+    	private Iterator<Instance> pathWalker;
+    	private Instance next;
+
+
+    	public HeapIterator(Heap heap, String path, boolean strict) {
+    		this.visited = strict ? new RefSet() : null;
+
+    		steps = HeapPath.parsePath(path, false);
+    		if (steps[0] instanceof TypeFilterStep) {
+    			TypeFilterStep filterStep = (TypeFilterStep) steps[0];
+    			classFilter = new HashSet<JavaClass>(filterStep.filter(heap.getAllClasses()));
+    		}
+    		else if (steps[0] instanceof ArrayIndexStep) {
+    			Set<JavaClass> arrays = new HashSet<JavaClass>();
+    			for(JavaClass jc: heap.getAllClasses()) {
+    				if (jc.isArray()) {
+    					arrays.add(jc);
+    				}
+    			}
+    			classFilter = arrays;
+    		}
+    		else if (steps[0] instanceof FieldStep) {
+    			FieldStep fieldStep = (FieldStep) steps[0];
+    			if (fieldStep.getFieldName() != null) {
+        			Set<JavaClass> types = new HashSet<JavaClass>();
+        			for(JavaClass jc: heap.getAllClasses()) {
+        				if (hasField(jc, fieldStep.getFieldName())) {
+        					types.add(jc);
+        				}
+        			}
+    				classFilter = types;
+    			}
+    			else {
+    				// no idea
+    				classFilter = null;
+    			}
+    		}
+    		else {
+    			classFilter = null;
+    		}
+    		walker = heap.getAllInstancesIterator();
+    	}
+
+		@Override
+		public boolean hasNext() {
+			if (next == null) {
+				while(true) {
+					Instance n;
+					if (pathWalker != null && pathWalker.hasNext()) {
+						n = pathWalker.next();
+						if (visited != null) {
+							if (visited.getAndSet(n.getInstanceId(), true)) {
+								continue;
+							}
+						}
+						next = n;
+						break;
+					}
+					if (walker.hasNext()) {
+						n = walker.next();
+						if (classFilter != null && !classFilter.contains(n.getJavaClass())) {
+							continue;
+						}
+						else {
+							pathWalker = HeapPath.collect(n, steps).iterator();
+						}
+					}
+					else {
+						break;
+					}
+
+				}
+			}
+			return next != null;
+		}
+
+		@Override
+		public Instance next() {
+			if (!hasNext()) {
+				throw new NoSuchElementException();
+			}
+			Instance result = next;
+			next = null;
+			return result;
+		}
+
+		private boolean hasField(JavaClass jc, String fieldName) {
+			for(Field f: jc.getFields()) {
+				if (fieldName.equals(f.getName())) {
+					return true;
+				}
+			}
+			if (jc.getSuperClass() != null) {
+				return hasField(jc.getSuperClass(), fieldName);
+			}
+			return false;
+		}
     }
 }

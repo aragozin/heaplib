@@ -40,7 +40,7 @@ public interface Heap {
      * @return list of all {@link JavaClass} in the heap.
      */
     List<JavaClass> getAllClasses();
-    
+
     /**
      * @return iterable walking through all instances in the heap
      */
@@ -50,7 +50,7 @@ public interface Heap {
      * @return iterable walking through all instances in the heap, starting with given instanceID
      */
     Iterable<Instance> getAllInstances(long instanceID);
-    
+
     /**
      * computes List of N biggest {@link Instance}-s in this heap.
      * The instances are ordered according to their retained size.
@@ -60,7 +60,7 @@ public interface Heap {
      * @return list of N biggest {@link Instance}.
      */
     List<Instance> getBiggestObjectsByRetainedSize(int number);
-    
+
     /**
      * returns {@link GCRoot} for {@link Instance}.
      * <br>
@@ -128,7 +128,7 @@ public interface Heap {
      * @return an <tt>Iterator</tt> over the {@link Instance}es in this heap
      */
     public Iterator<Instance> getAllInstancesIterator();
-    
+
     /**
      * returns optional summary information of the heap.
      * If this information is not available in the dump,
@@ -153,4 +153,9 @@ public interface Heap {
 
     boolean isRetainedSizeComputed();
     boolean isRetainedSizeByClassComputed();
+
+    /**
+     * @return <code>true</code> if {@link PatchableCharArray} interface could be used to modify heap content on disk.
+     */
+    boolean isWriteable();
 }

@@ -22,6 +22,7 @@ package org.netbeans.lib.profiler.heap;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 
@@ -30,7 +31,7 @@ import java.nio.channels.FileChannel;
  *
  * @author Tomas Hurka
  */
-class HprofLongMappedByteBuffer extends HprofByteBuffer {
+class HprofLongMappedByteBuffer extends HprofByteBuffer implements PatchableHprofByteBuffer {
     //~ Static fields/initializers -----------------------------------------------------------------------------------------------
 
     private static int BUFFER_SIZE_BITS = 30;
@@ -44,17 +45,21 @@ class HprofLongMappedByteBuffer extends HprofByteBuffer {
 
     //~ Constructors -------------------------------------------------------------------------------------------------------------
 
-    @SuppressWarnings("resource")
     HprofLongMappedByteBuffer(File dumpFile) throws IOException {
-		FileInputStream fis = new FileInputStream(dumpFile);
-        FileChannel channel = fis.getChannel();
+    	this(dumpFile, false);
+    }
+
+    @SuppressWarnings("resource")
+    HprofLongMappedByteBuffer(File dumpFile, boolean writeable) throws IOException {
+    	RandomAccessFile file = new RandomAccessFile(dumpFile, writeable ? "rw" : "r");
+        FileChannel channel = file.getChannel();
         length = channel.size();
         dumpBuffer = new MappedByteBuffer[(int) (((length + BUFFER_SIZE) - 1) / BUFFER_SIZE)];
 
         for (int i = 0; i < dumpBuffer.length; i++) {
             long position = i * BUFFER_SIZE;
             long size = Math.min(BUFFER_SIZE + BUFFER_EXT, length - position);
-            dumpBuffer[i] = channel.map(FileChannel.MapMode.READ_ONLY, position, size);
+            dumpBuffer[i] = channel.map(writeable ? FileChannel.MapMode.READ_WRITE : FileChannel.MapMode.READ_ONLY, position, size);
         }
 
         channel.close();
@@ -63,36 +68,60 @@ class HprofLongMappedByteBuffer extends HprofByteBuffer {
 
     //~ Methods ------------------------------------------------------------------------------------------------------------------
 
-    char getChar(long index) {
+    @Override
+    public void writePatch(long index, byte[] dataPatch) {
+    	for(int i = 0; i != dataPatch.length; ++i) {
+    		long addr = index + i;
+    		dumpBuffer[getBufferIndex(addr)].put(getBufferOffset(addr), dataPatch[i]);
+    	}
+    }
+
+    @Override
+    public void readPatch(long index, byte[] dataPatch) {
+    	for(int i = 0; i != dataPatch.length; ++i) {
+    		long addr = index + i;
+    		dataPatch[i] = dumpBuffer[getBufferIndex(addr)].get(getBufferOffset(addr));
+    	}
+    }
+
+    @Override
+	char getChar(long index) {
         return dumpBuffer[getBufferIndex(index)].getChar(getBufferOffset(index));
     }
 
-    double getDouble(long index) {
+    @Override
+	double getDouble(long index) {
         return dumpBuffer[getBufferIndex(index)].getDouble(getBufferOffset(index));
     }
 
-    float getFloat(long index) {
+    @Override
+	float getFloat(long index) {
         return dumpBuffer[getBufferIndex(index)].getFloat(getBufferOffset(index));
     }
 
-    int getInt(long index) {
+    @Override
+	int getInt(long index) {
         return dumpBuffer[getBufferIndex(index)].getInt(getBufferOffset(index));
     }
 
-    long getLong(long index) {
+    @Override
+	long getLong(long index) {
         return dumpBuffer[getBufferIndex(index)].getLong(getBufferOffset(index));
     }
 
-    short getShort(long index) {
+    @Override
+	short getShort(long index) {
         return dumpBuffer[getBufferIndex(index)].getShort(getBufferOffset(index));
     }
 
-    // delegate to MappedByteBuffer        
-    byte get(long index) {
+    // delegate to MappedByteBuffer
+    @Override
+	byte get(long index) {
         return dumpBuffer[getBufferIndex(index)].get(getBufferOffset(index));
     }
 
-    synchronized void get(long position, byte[] chars) {
+    @Override
+	synchronized void get(long position, byte[] chars) {
         MappedByteBuffer buffer = dumpBuffer[getBufferIndex(position)];
         buffer.position(getBufferOffset(position));
         buffer.get(chars);
@@ -105,8 +134,9 @@ class HprofLongMappedByteBuffer extends HprofByteBuffer {
     private int getBufferOffset(long index) {
         return (int) (index & BUFFER_SIZE_MASK);
     }
-    
-    public String toString() {
+
+    @Override
+	public String toString() {
         return "Long memory mapped file strategy";
     }
 }
