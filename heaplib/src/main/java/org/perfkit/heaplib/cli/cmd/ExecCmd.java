@@ -38,8 +38,11 @@ public class ExecCmd implements CmdRef {
         @ParametersDelegate
         private HeapProvider heapProvider = new HeapProvider();
 
-        @Parameter(names = {"-e" }, required = true, description = "Script one liner or @FILE")
+        @Parameter(names = {"-e" }, required = false, description = "Script one liner")
         private String script;
+
+        @Parameter(names = {"-f" }, required = false, description = "Path to script file")
+        private String scriptFile;
 
         @Parameter(names = {"-a" }, variableArity = true, required = false, description = "Script arguments in form NAME=VALUE")
         private List<String> args = new ArrayList<String>();
@@ -51,12 +54,19 @@ public class ExecCmd implements CmdRef {
         @Override
         public void run() {
             try {
+                if (script == null && scriptFile == null) {
+                    throw host.fail("eigther -e or -f argument is required");
+                }
+                if (script != null && scriptFile != null) {
+                    throw host.fail("you cannot use both -e and -f");
+                }
+
                 Heap heap = heapProvider.openHeap(host);
 
                 OQLEngine engine = new OQLEngine(heap);
                 String query = script;
-                if (query.startsWith("@")) {
-                    query = readScript(query.substring(1));
+                if (query == null) {
+                    query = readScript(scriptFile);
                 }
 
                 engine.executeQuery(query, new ObjectVisitor() {

@@ -165,6 +165,20 @@ public class CliCheck {
         exec("exec", "--noindex", "-d", "../hprof-oql-engine/src/test/resources/small_heap.bin", "-e", "select {name: a.name, priority: a.priority} from java.lang.Thread a", "-X");
     }
 
+    @Test
+    public void exec_rwlock_dump_visvm() {
+        exec("exec", "--noindex", "-X",
+                "-d", "../hprof-oql-engine/src/test/resources/rwdeadlock.hprof",
+                "-f", "../hprof-oql-engine/src/test/resources/oql/rwlock_dump_visvm.js");
+    }
+
+    @Test
+    public void exec_rwlock_dump() {
+        exec("exec", "--noindex", "-X",
+                "-d", "../hprof-oql-engine/src/test/resources/rwdeadlock.hprof",
+                "-f", "../hprof-oql-engine/src/test/resources/oql/rwlock_dump_console.js");
+    }
+
     private void exec(String... cmd) {
         HeapCLI sjk = new HeapCLI();
         sjk.suppressSystemExit();
