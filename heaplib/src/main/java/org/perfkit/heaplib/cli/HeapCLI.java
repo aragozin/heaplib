@@ -1,4 +1,4 @@
-package org.perfkit.jheaplib.cli;
+package org.perfkit.heaplib.cli;
 
 import org.gridkit.jvmtool.cli.CommandLauncher;
 

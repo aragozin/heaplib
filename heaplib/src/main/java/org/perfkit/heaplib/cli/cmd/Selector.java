@@ -1,4 +1,4 @@
-package org.perfkit.jheaplib.cli.cmd;
+package org.perfkit.heaplib.cli.cmd;
 
 import java.util.regex.Pattern;
 

@@ -2,7 +2,7 @@
 
 <!--
 
-    Copyright 2012 Alexey Ragozin
+    Copyright 2019 Alexey Ragozin
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -27,16 +27,16 @@
   </parent>
 
   <groupId>org.gridkit.jvmtool</groupId>
-  <artifactId>jheaplib-pom</artifactId>
-  <version>0.12-SNAPSHOT</version>
+  <artifactId>heaplib-pom</artifactId>
+  <version>0.1-SNAPSHOT</version>
   <name>${project.groupId}::${project.artifactId}</name>
-  <description>JHeapLib parent pom</description>
+  <description>HeapLib parent pom</description>
   <packaging>pom</packaging>
 
   <modules>
     <module>hprof-heap</module>
     <module>hprof-oql-engine</module>
-    <module>jheaplib</module>
+    <module>heaplib</module>
     <module>heap-cli</module>
   </modules>
 
@@ -84,7 +84,7 @@
       </dependency>
       <dependency>
         <groupId>org.gridkit.jvmtool</groupId>
-        <artifactId>jheaplib</artifactId>
+        <artifactId>heaplib</artifactId>
         <version>${project.version}</version>
       </dependency>
 

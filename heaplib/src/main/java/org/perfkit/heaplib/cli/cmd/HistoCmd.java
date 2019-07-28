@@ -1,4 +1,4 @@
-package org.perfkit.jheaplib.cli.cmd;
+package org.perfkit.heaplib.cli.cmd;
 
 import org.gridkit.jvmtool.cli.CommandLauncher;
 import org.gridkit.jvmtool.cli.CommandLauncher.CmdRef;
@@ -46,7 +46,7 @@ public class HistoCmd implements CmdRef {
 
                 System.out.println(histogram.formatTop(Integer.MAX_VALUE));
             } catch (Exception e) {
-                throw host.fail("", e);
+                throw host.fail("Heap dump processing error", e);
             }
         }
     }

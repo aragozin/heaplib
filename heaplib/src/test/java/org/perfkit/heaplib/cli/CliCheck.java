@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.perfkit.jheaplib.cli;
+package org.perfkit.heaplib.cli;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -24,6 +24,7 @@ import java.lang.management.ManagementFactory;
 import org.junit.Assert;
 import org.junit.Assume;
 import org.junit.Test;
+import org.perfkit.heaplib.cli.HeapCLI;
 
 /**
  * JUnit command runner.
@@ -90,6 +91,16 @@ public class CliCheck {
     @Test
     public void histo_fast() {
         exec("histo", "--noindex", "-d", "../hprof-oql-engine/src/test/resources/small_heap.bin");
+    }
+
+    @Test
+    public void histo_big_dump() {
+        exec("histo", "--noindex", "-d", "../dump1.live.hprof");
+    }
+
+    @Test
+    public void histo_big_dump2() {
+        exec("histo", "-d", "../dump1.live.hprof");
     }
 
     @Test
