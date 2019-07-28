@@ -57,9 +57,9 @@
   </developers>
 
   <scm>
-    <connection>scm:git:https://github.com/aragozin/jheapli.git</connection>
-    <developerConnection>scm:git:https://github.com/aragozin/jheaplib.git</developerConnection>
-    <url>https://github.com/aragozin/jheaplib</url>
+    <connection>scm:git:https://github.com/aragozin/heaplib.git</connection>
+    <developerConnection>scm:git:https://github.com/aragozin/heaplib.git</developerConnection>
+    <url>https://github.com/aragozin/heaplib</url>
     <tag>HEAD</tag>
   </scm>
 
