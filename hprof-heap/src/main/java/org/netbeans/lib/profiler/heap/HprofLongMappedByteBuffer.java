@@ -20,7 +20,6 @@
 package org.netbeans.lib.profiler.heap;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.MappedByteBuffer;

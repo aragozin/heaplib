@@ -24,12 +24,13 @@ public class MaskCmd implements CmdRef {
 
     @Override
     public Runnable newCommand(CommandLauncher host) {
-        return new ScriptRunner(host);
+        return new MaskRunner(host);
     }
 
     @Parameters(commandDescription = "Patch heap dump on disk to mask out certain data")
-    public static class ScriptRunner implements Runnable {
+    public static class MaskRunner implements Runnable {
 
+        @ParametersDelegate
         private final CommandLauncher host;
 
         @ParametersDelegate
@@ -45,7 +46,7 @@ public class MaskCmd implements CmdRef {
         @Parameter(names = { "--patch" }, required = false, description = "Enable dump file modification")
         private boolean patch = false;
 
-        public ScriptRunner(CommandLauncher host) {
+        public MaskRunner(CommandLauncher host) {
             this.host = host;
         }
 
@@ -106,7 +107,6 @@ public class MaskCmd implements CmdRef {
                     }
                 }
             } catch (Exception e) {
-                e.printStackTrace();
                 throw host.fail("Error during heap processing " + e.toString(), e);
             }
         }

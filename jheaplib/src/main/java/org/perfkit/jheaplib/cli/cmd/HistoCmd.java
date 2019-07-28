@@ -18,18 +18,19 @@ public class HistoCmd implements CmdRef {
 
     @Override
     public Runnable newCommand(CommandLauncher host) {
-        return new ScriptRunner(host);
+        return new HistoRunner(host);
     }
 
     @Parameters(commandDescription = "Class histogram")
-    public static class ScriptRunner implements Runnable {
+    public static class HistoRunner implements Runnable {
 
+        @ParametersDelegate
         private final CommandLauncher host;
 
         @ParametersDelegate
         private HeapProvider heapProvider = new HeapProvider();
 
-        public ScriptRunner(CommandLauncher host) {
+        public HistoRunner(CommandLauncher host) {
             this.host = host;
         }
 

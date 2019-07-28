@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.lang.management.ManagementFactory;
 
 import org.junit.Assert;
+import org.junit.Assume;
 import org.junit.Test;
 
 /**
@@ -37,29 +38,33 @@ public class CliCheck {
         PID = PID.substring(0, PID.indexOf('@'));
     }
 
+    private static void assume_64bit() {
+        Assume.assumeTrue("Should run on 64bit VM", ManagementFactory.getRuntimeMXBean().getVmName().contains("64"));
+    }
+
     public void copy(String path, String target) {
-    	if (new File(target).isFile()) {
-    		new File(target).delete();
-    	}
-    	if (new File(target).getParentFile() != null) {
-    		new File(target).getParentFile().mkdirs();
-    	}
-    	try {
-			FileInputStream fis = new FileInputStream(path);
-			FileOutputStream fos = new FileOutputStream(target);
-			byte[] buf = new byte[16 << 10];
-			while(true) {
-				int n = fis.read(buf);
-				if (n < 0) {
-					break;
-				}
-				fos.write(buf, 0, n);
-			}
-			fis.close();
-			fos.close();
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
+        if (new File(target).isFile()) {
+            new File(target).delete();
+        }
+        if (new File(target).getParentFile() != null) {
+            new File(target).getParentFile().mkdirs();
+        }
+        try {
+            FileInputStream fis = new FileInputStream(path);
+            FileOutputStream fos = new FileOutputStream(target);
+            byte[] buf = new byte[16 << 10];
+            while (true) {
+                int n = fis.read(buf);
+                if (n < 0) {
+                    break;
+                }
+                fos.write(buf, 0, n);
+            }
+            fis.close();
+            fos.close();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Test
@@ -74,58 +79,79 @@ public class CliCheck {
 
     @Test
     public void histo() {
-    	exec("histo", "-d", "../hprof-oql-engine/src/test/resources/small_heap.bin");
+        exec("histo", "-d", "../hprof-oql-engine/src/test/resources/small_heap.bin");
     }
 
     @Test
     public void histo_index() {
-    	exec("histo", "-d", "../hprof-oql-engine/src/test/resources/small_heap.bin", "--index", "target/hprof.aux");
+        exec("histo", "-d", "../hprof-oql-engine/src/test/resources/small_heap.bin", "--index", "target/hprof.aux");
     }
 
     @Test
     public void histo_fast() {
-    	exec("histo", "--noindex", "-d", "../hprof-oql-engine/src/test/resources/small_heap.bin");
+        exec("histo", "--noindex", "-d", "../hprof-oql-engine/src/test/resources/small_heap.bin");
     }
 
     @Test
     public void mask() {
-    	exec("mask", "--noindex", "-d", "../hprof-oql-engine/src/test/resources/small_heap.bin", "-s", "(**.Thread).name");
+        exec("mask", "--noindex", "-d", "../hprof-oql-engine/src/test/resources/small_heap.bin", "-s",
+                "(**.Thread).name");
     }
 
     @Test
     public void mask_rex() {
-    	exec("mask", "--noindex", "-d", "../hprof-oql-engine/src/test/resources/small_heap.bin", "-s", "(**.Thread).name", "-m", ".*(Com).*(Thread).*");
+        exec("mask", "--noindex", "-d", "../hprof-oql-engine/src/test/resources/small_heap.bin", "-s",
+                "(**.Thread).name", "-m", ".*(Com).*(Thread).*");
     }
 
     @Test
     public void mask_string() {
-    	exec("mask", "--noindex", "-d", "../hprof-oql-engine/src/test/resources/small_heap.bin", "-s", "name", "-m", ".*(java).*");
+        exec("mask", "--noindex", "-d", "../hprof-oql-engine/src/test/resources/small_heap.bin", "-s", "name", "-m",
+                ".*(java).*");
     }
 
     @Test
     public void mask_string_patch() {
-    	String target = "target/tmp/small_heap_mask_string_patch.bin";
-    	copy("../hprof-oql-engine/src/test/resources/small_heap.bin", target);
-    	exec("mask", "--noindex", "--patch", "-d", target, "-s", "name", "-m", ".*(java).*");
-    	exec("mask", "--noindex", "-d", target, "-s", "name");
+        String target = "target/tmp/small_heap_mask_string_patch.bin";
+        copy("../hprof-oql-engine/src/test/resources/small_heap.bin", target);
+        exec("mask", "--noindex", "--patch", "-d", target, "-s", "name", "-m", ".*(java).*");
+        exec("mask", "--noindex", "-d", target, "-s", "name");
     }
 
     @Test
     public void mask_rex_patch() {
-    	String target = "target/tmp/small_heap_mask_rex_patch.bin";
-    	copy("../hprof-oql-engine/src/test/resources/small_heap.bin", target);
-    	exec("mask", "--noindex", "--patch", "-d", target, "-s", "(**.Thread).name", "-m", ".*(Com).*(Thread).*");
-    	exec("mask", "--noindex", "-d", target, "-s", "(**.Thread).name");
+        String target = "target/tmp/small_heap_mask_rex_patch.bin";
+        copy("../hprof-oql-engine/src/test/resources/small_heap.bin", target);
+        exec("mask", "--noindex", "--patch", "-d", target, "-s", "(**.Thread).name", "-m", ".*(Com).*(Thread).*");
+        exec("mask", "--noindex", "-d", target, "-s", "(**.Thread).name");
     }
 
     @Test
     public void mask_bin_rex() {
-    	exec("mask", "--noindex", "-d", "../dump1.live.hprof", "-s", "(**.Thread).name", "-m", ".*serverUUID.*");
+        assume_64bit();
+        exec("mask", "--noindex", "-d", "../dump1.live.hprof", "-s", "(**.Thread).name", "-m", ".*serverUUID.*");
     }
 
     @Test
     public void mask_bin_rex_patch() {
-    	exec("mask", "--noindex", "--patch", "-d", "../dump1.live.hprof", "-s", "(**.Thread).name", "-m", ".*serverUUID=([0-9a-z]+).*");
+        assume_64bit();
+        exec("mask", "--noindex", "--patch", "-d", "../dump1.live.hprof", "-s", "(**.Thread).name", "-m",
+                ".*serverUUID=([0-9a-z]+).*");
+    }
+
+    @Test
+    public void grep() {
+        exec("grep", "--noindex", "-d", "../hprof-oql-engine/src/test/resources/small_heap.bin", "-s", "name:.*(java).*", "(**.Thread).name", "-X");
+    }
+
+    @Test
+    public void exec() {
+        exec("exec", "--noindex", "-d", "../hprof-oql-engine/src/test/resources/small_heap.bin", "-e", "select a from java.lang.Thread a", "-X");
+    }
+
+    @Test
+    public void exec2() {
+        exec("exec", "--noindex", "-d", "../hprof-oql-engine/src/test/resources/small_heap.bin", "-e", "select {name: a.name, priority: a.priority} from java.lang.Thread a", "-X");
     }
 
     private void exec(String... cmd) {
@@ -133,30 +159,17 @@ public class CliCheck {
         sjk.suppressSystemExit();
         StringBuilder sb = new StringBuilder();
         sb.append("CLI");
-        for(String c: cmd) {
+        for (String c : cmd) {
             sb.append(' ').append(escape(c));
         }
         System.out.println(sb);
         Assert.assertTrue(sjk.start(cmd));
     }
 
-    private void fail(String... cmd) {
-    	HeapCLI sjk = new HeapCLI();
-        sjk.suppressSystemExit();
-        StringBuilder sb = new StringBuilder();
-        sb.append("SJK");
-        for(String c: cmd) {
-            sb.append(' ').append(escape(c));
-        }
-        System.out.println(sb);
-        Assert.assertFalse(sjk.start(cmd));
-    }
-
     private Object escape(String c) {
         if (c.split("\\s").length > 1) {
             return '\"' + c + '\"';
-        }
-        else {
+        } else {
             return c;
         }
     }

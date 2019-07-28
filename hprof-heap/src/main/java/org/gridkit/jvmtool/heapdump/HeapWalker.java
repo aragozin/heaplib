@@ -71,7 +71,7 @@ public class HeapWalker {
                 return primitiveArrayValue(instance);
             }
         };
-        for(String ptype: BOX_TYPES) {
+        for (String ptype : BOX_TYPES) {
             CONVERTERS.put(ptype, primitiveConverter);
         }
         CONVERTERS.put("boolean[]", primitiveArrayConverter);
@@ -141,9 +141,8 @@ public class HeapWalker {
     };
 
     /**
-     * Converts instances of few well know Java classes from
-     * dump to normal java objects.
-     * <br/>
+     * Converts instances of few well know Java classes from dump to normal java
+     * objects. <br/>
      * Following are supported classes
      * <li>{@link String}</li>
      * <li>{@link Boolean}</li>
@@ -157,11 +156,12 @@ public class HeapWalker {
      * <li>primitive arrays</li>
      * <li>object arrays</li>
      */
-     /* TBD
-     * <li>{@link Arrays#asList(Object...)}</li>
-     * <li>{@link ArrayList} (subclasses would be reduced to {@link ArrayList})</li>
-     * <li>{@link HashMap} (subclasses including {@link LinkedHashMap} would be reduced to {@link ArrayList})</li>
-     * <li>{@link HashSet} (subclasses including {@link LinkedHashSet} would be reduced to {@link ArrayList})</li>
+    /*
+     * TBD <li>{@link Arrays#asList(Object...)}</li> <li>{@link ArrayList}
+     * (subclasses would be reduced to {@link ArrayList})</li> <li>{@link HashMap}
+     * (subclasses including {@link LinkedHashMap} would be reduced to {@link
+     * ArrayList})</li> <li>{@link HashSet} (subclasses including {@link
+     * LinkedHashSet} would be reduced to {@link ArrayList})</li>
      */
     @SuppressWarnings("unchecked")
     public static <T> T valueOf(Instance obj) {
@@ -170,23 +170,21 @@ public class HeapWalker {
         }
         JavaClass t = obj.getJavaClass();
         InstanceConverter c = CONVERTERS.get(obj.getJavaClass().getName());
-        while(c == null && t.getSuperClass() != null) {
+        while (c == null && t.getSuperClass() != null) {
             t = t.getSuperClass();
             c = CONVERTERS.get(obj.getJavaClass().getName());
         }
         if (c == null) {
             // return instance as is
             return (T) obj;
+        } else {
+            return (T) c.convert(obj);
         }
-        else {
-        return (T)c.convert(obj);
-    }
     }
 
     /**
-     * Converts value referenced for path from dump to normal java objects.
-     * Few well known Java classes as long as primitive types are supported.
-     * <br/>
+     * Converts value referenced for path from dump to normal java objects. Few well
+     * known Java classes as long as primitive types are supported. <br/>
      * Following are supported classes
      * <li>{@link String}</li>
      * <li>{@link Boolean}</li>
@@ -200,11 +198,12 @@ public class HeapWalker {
      * <li>primitive arrays</li>
      * <li>object arrays</li>
      */
-     /* TBD
-     * <li>{@link Arrays#asList(Object...)}</li>
-     * <li>{@link ArrayList} (subclasses would be reduced to {@link ArrayList})</li>
-     * <li>{@link HashMap} (subclasses including {@link LinkedHashMap} would be reduced to {@link ArrayList})</li>
-     * <li>{@link HashSet} (subclasses including {@link LinkedHashSet} would be reduced to {@link ArrayList})</li>
+    /*
+     * TBD <li>{@link Arrays#asList(Object...)}</li> <li>{@link ArrayList}
+     * (subclasses would be reduced to {@link ArrayList})</li> <li>{@link HashMap}
+     * (subclasses including {@link LinkedHashMap} would be reduced to {@link
+     * ArrayList})</li> <li>{@link HashSet} (subclasses including {@link
+     * LinkedHashSet} would be reduced to {@link ArrayList})</li>
      */
     @SuppressWarnings("unchecked")
     public static <T> T valueOf(Instance obj, String pathSpec) {
@@ -213,14 +212,13 @@ public class HeapWalker {
             PathStep[] shortPath = Arrays.copyOf(steps, steps.length - 1);
             FieldStep lastStep = (FieldStep) steps[steps.length - 1];
             String fieldName = lastStep.getFieldName();
-            for(Instance i: HeapPath.collect(obj, shortPath)) {
-                for(FieldValue fv: i.getFieldValues()) {
+            for (Instance i : HeapPath.collect(obj, shortPath)) {
+                for (FieldValue fv : i.getFieldValues()) {
                     if ((fieldName == null && (!fv.getField().isStatic()))
                             || (fv.getField().getName().equals(fieldName))) {
                         if (fv instanceof ObjectFieldValue) {
                             return valueOf(((ObjectFieldValue) fv).getInstance());
-                        }
-                        else {
+                        } else {
                             // have to use this as private package API is used behind scene
                             return (T) i.getValueOfField(fv.getField().getName());
                         }
@@ -228,11 +226,10 @@ public class HeapWalker {
                 }
             }
             return null;
-        }
-        else if (steps.length > 0 && steps[steps.length - 1] instanceof ArrayIndexStep) {
+        } else if (steps.length > 0 && steps[steps.length - 1] instanceof ArrayIndexStep) {
             PathStep[] shortPath = Arrays.copyOf(steps, steps.length - 1);
             ArrayIndexStep lastStep = (ArrayIndexStep) steps[steps.length - 1];
-            for(Instance i: HeapPath.collect(obj, shortPath)) {
+            for (Instance i : HeapPath.collect(obj, shortPath)) {
                 if (i instanceof PrimitiveArrayInstance) {
                     Object array = valueOf(i);
                     if (array != null) {
@@ -243,14 +240,12 @@ public class HeapWalker {
                         }
                         if (n < len) {
                             return (T) Array.get(array, n);
-                        }
-                        else {
+                        } else {
                             return null;
                         }
                     }
-                }
-                else {
-                    for(Instance x: HeapPath.collect(i, new PathStep[]{lastStep})) {
+                } else {
+                    for (Instance x : HeapPath.collect(i, new PathStep[] { lastStep })) {
                         return valueOf(x);
                     }
                 }
@@ -258,7 +253,7 @@ public class HeapWalker {
             return null;
 
         } else {
-            for(Instance i: HeapPath.collect(obj, steps)) {
+            for (Instance i : HeapPath.collect(obj, steps)) {
                 return valueOf(i);
             }
             return null;
@@ -266,62 +261,63 @@ public class HeapWalker {
     }
 
     public static String stringValue(Instance obj) {
-		if (obj == null) return null;
+        if (obj == null)
+            return null;
 
-		if (!"java.lang.String".equals(obj.getJavaClass().getName()))
-			throw new IllegalArgumentException("Is not a string: " + obj.getInstanceId() + " (" + obj.getJavaClass().getName() + ")");
+        if (!"java.lang.String".equals(obj.getJavaClass().getName()))
+            throw new IllegalArgumentException(
+                    "Is not a string: " + obj.getInstanceId() + " (" + obj.getJavaClass().getName() + ")");
 
-		Boolean COMPACT_STRINGS = (Boolean) obj.getJavaClass().getValueOfStaticField("COMPACT_STRINGS");
-		if (COMPACT_STRINGS == null)
-			return stringValue_java8(obj); // We're pre Java 9
+        Boolean COMPACT_STRINGS = (Boolean) obj.getJavaClass().getValueOfStaticField("COMPACT_STRINGS");
+        if (COMPACT_STRINGS == null)
+            return stringValue_java8(obj); // We're pre Java 9
 
-		Object valueInstance = obj.getValueOfField("value");
-		PrimitiveArrayInstance chars = (PrimitiveArrayInstance) valueInstance;
+        Object valueInstance = obj.getValueOfField("value");
+        PrimitiveArrayInstance chars = (PrimitiveArrayInstance) valueInstance;
 
-		byte UTF16 = 1;
-		byte coder = COMPACT_STRINGS ? (Byte) obj.getValueOfField("coder") : UTF16;
-		int len = chars.getLength() >> coder;
-		char[] text = new char[len];
+        byte UTF16 = 1;
+        byte coder = COMPACT_STRINGS ? (Byte) obj.getValueOfField("coder") : UTF16;
+        int len = chars.getLength() >> coder;
+        char[] text = new char[len];
 
-		@SuppressWarnings({ "unchecked", "rawtypes" }) // generic recast
-		List<String> values = (List) chars.getValues();
-		if (coder == UTF16)
-			for (int i = 0; i < text.length; i++) {
-				text[i] = (char)
-				    ((Integer.parseInt(values.get(i*2+1)) << 8)
-				   | (Integer.parseInt(values.get(i*2)) & 0xFF));
-			}
-		else
-			for (int i = 0; i < text.length; i++)
-				text[i] = (char) Integer.parseInt(values.get(i));
+        @SuppressWarnings({ "unchecked", "rawtypes" }) // generic recast
+        List<String> values = (List) chars.getValues();
+        if (coder == UTF16)
+            for (int i = 0; i < text.length; i++) {
+                text[i] = (char) ((Integer.parseInt(values.get(i * 2 + 1)) << 8)
+                        | (Integer.parseInt(values.get(i * 2)) & 0xFF));
+            }
+        else
+            for (int i = 0; i < text.length; i++)
+                text[i] = (char) Integer.parseInt(values.get(i));
 
-		return new String(text);
-	}
+        return new String(text);
+    }
 
     static String stringValue_java8(Instance obj) {
         if (obj == null) {
             return null;
         }
         if (!"java.lang.String".equals(obj.getJavaClass().getName())) {
-            throw new IllegalArgumentException("Is not a string: " + obj.getInstanceId() + " (" + obj.getJavaClass().getName() + ")");
+            throw new IllegalArgumentException(
+                    "Is not a string: " + obj.getInstanceId() + " (" + obj.getJavaClass().getName() + ")");
         }
         char[] text = null;
         int offset = 0;
         int len = -1;
-        for(FieldValue f: obj.getFieldValues()) {
+        for (FieldValue f : obj.getFieldValues()) {
             Field ff = f.getField();
             if ("value".equals(ff.getName())) {
-                PrimitiveArrayInstance chars = (PrimitiveArrayInstance) ((ObjectFieldValue)f).getInstance();
+                PrimitiveArrayInstance chars = (PrimitiveArrayInstance) ((ObjectFieldValue) f).getInstance();
                 text = new char[chars.getLength()];
-                for(int i = 0; i != text.length; ++i) {
-                    text[i] = ((String)chars.getValues().get(i)).charAt(0);
+                for (int i = 0; i != text.length; ++i) {
+                    text[i] = ((String) chars.getValues().get(i)).charAt(0);
                 }
             }
             // fields below were removed in Java 7
             else if ("offset".equals(ff.getName())) {
                 offset = Integer.valueOf(f.getValue());
-            }
-            else if ("count".equals(ff.getName())) {
+            } else if ("count".equals(ff.getName())) {
                 len = Integer.valueOf(f.getValue());
             }
         }
@@ -340,10 +336,10 @@ public class HeapWalker {
         }
         String className = obj.getJavaClass().getName();
         if (BOX_TYPES.contains(className)) {
-            return (T)obj.getValueOfField("value");
-        }
-        else {
-            throw new IllegalArgumentException("Is not a primitive wrapper: " + obj.getInstanceId() + " (" + obj.getJavaClass().getName() + ")");
+            return (T) obj.getValueOfField("value");
+        } else {
+            throw new IllegalArgumentException(
+                    "Is not a primitive wrapper: " + obj.getInstanceId() + " (" + obj.getJavaClass().getName() + ")");
         }
     }
 
@@ -361,41 +357,34 @@ public class HeapWalker {
             if ("boolean[]".equals(type)) {
                 array = new boolean[len];
                 parser = BOOL_PARSER;
-            }
-            else if ("byte[]".equals(type)) {
+            } else if ("byte[]".equals(type)) {
                 array = new byte[len];
                 parser = BYTE_PARSER;
-            }
-            else if ("char[]".equals(type)) {
+            } else if ("char[]".equals(type)) {
                 array = new char[len];
                 parser = CHAR_PARSER;
-            }
-            else if ("short[]".equals(type)) {
+            } else if ("short[]".equals(type)) {
                 array = new short[len];
                 parser = SHORT_PARSER;
-            }
-            else if ("int[]".equals(type)) {
+            } else if ("int[]".equals(type)) {
                 array = new int[len];
                 parser = INT_PARSER;
-            }
-            else if ("long[]".equals(type)) {
+            } else if ("long[]".equals(type)) {
                 array = new long[len];
                 parser = LONG_PARSER;
-            }
-            else if ("float[]".equals(type)) {
+            } else if ("float[]".equals(type)) {
                 array = new float[len];
                 parser = FLOAT_PARSER;
-            }
-            else if ("double[]".equals(type)) {
+            } else if ("double[]".equals(type)) {
                 array = new double[len];
                 parser = DOUBLE_PARSER;
-            }
-            else {
-                throw new IllegalArgumentException("Is not a primitive array: " + obj.getInstanceId() + " (" + obj.getJavaClass().getName() + ")");
+            } else {
+                throw new IllegalArgumentException(
+                        "Is not a primitive array: " + obj.getInstanceId() + " (" + obj.getJavaClass().getName() + ")");
             }
 
             List<Object> values = pa.getValues();
-            for(int i = 0; i != values.size(); ++i) {
+            for (int i = 0; i != values.size(); ++i) {
                 Object val = values.get(i);
                 if (val instanceof String) {
                     val = parser.toValue((String) val);
@@ -403,22 +392,22 @@ public class HeapWalker {
                 Array.set(array, i, val);
             }
 
-            return (T)array;
-        }
-        else {
-            throw new IllegalArgumentException("Is not a primitive array: " + obj.getInstanceId() + " (" + obj.getJavaClass().getName() + ")");
+            return (T) array;
+        } else {
+            throw new IllegalArgumentException(
+                    "Is not a primitive array: " + obj.getInstanceId() + " (" + obj.getJavaClass().getName() + ")");
         }
     }
 
     public static Iterable<Instance> walk(final Heap heap, final String path) {
-    	return new Iterable<Instance>() {
+        return new Iterable<Instance>() {
 
-			@Override
-			public Iterator<Instance> iterator() {
-				HeapIterator hi = new HeapIterator(heap, path, true);
-				return hi;
-			}
-		};
+            @Override
+            public Iterator<Instance> iterator() {
+                HeapIterator hi = new HeapIterator(heap, path, true);
+                return hi;
+            }
+        };
     }
 
     public static Iterable<Instance> walk(Instance root, String path) {
@@ -429,8 +418,7 @@ public class HeapWalker {
         Iterator<Instance> it = walk(root, path).iterator();
         if (it.hasNext()) {
             return it.next();
-        }
-        else {
+        } else {
             return null;
         }
     }
@@ -439,22 +427,21 @@ public class HeapWalker {
         PathStep[] chain = HeapPath.parsePath(path, true);
         StringBuilder sb = new StringBuilder();
         Instance o = root;
-        for(int i = 0; i != chain.length; ++i) {
+        for (int i = 0; i != chain.length; ++i) {
             if (chain[i] instanceof TypeFilterStep) {
                 continue;
             }
 
             try {
                 Move m = chain[i].track(o).next();
-//                JavaClass hostType = hostType(o.getJavaClass(), m.pathSpec);
-//                hostType = hostType == null ? o.getJavaClass() : hostType;
+                // JavaClass hostType = hostType(o.getJavaClass(), m.pathSpec);
+                // hostType = hostType == null ? o.getJavaClass() : hostType;
 
-//                sb.append("(" + shortName(hostType.getName()) + ")");
+                // sb.append("(" + shortName(hostType.getName()) + ")");
                 sb.append("(" + shortName(o.getJavaClass().getName()) + ")");
                 sb.append(m.pathSpec);
                 o = m.instance;
-            }
-            catch(NoSuchElementException e) {
+            } catch (NoSuchElementException e) {
                 sb.append("{failed: " + chain[i] + "}");
                 break;
             }
@@ -462,12 +449,16 @@ public class HeapWalker {
         return sb.toString();
     }
 
+    public static void validateHeapPath(String path) {
+        HeapPath.parsePath(path, true);
+    }
+
     @SuppressWarnings("unused")
-	private static JavaClass hostType(JavaClass type, String pathSpec) {
+    private static JavaClass hostType(JavaClass type, String pathSpec) {
         if (pathSpec.startsWith(".")) {
             pathSpec = pathSpec.substring(1);
         }
-        for(Field f: type.getFields()) {
+        for (Field f : type.getFields()) {
             if (!f.isStatic() && f.getName().equals(pathSpec)) {
                 return f.getDeclaringClass();
             }
@@ -478,7 +469,6 @@ public class HeapWalker {
         return null;
     }
 
-
     public static Set<JavaClass> filterTypes(String filter, Iterable<JavaClass> types) {
         PathStep[] steps = HeapPath.parsePath("(" + filter + ")", true);
         if (steps.length != 1 || !(steps[0] instanceof TypeFilterStep)) {
@@ -486,7 +476,7 @@ public class HeapWalker {
         }
         TypeFilterStep f = (TypeFilterStep) steps[0];
         Set<JavaClass> result = new LinkedHashSet<JavaClass>();
-        for(JavaClass jc: types) {
+        for (JavaClass jc : types) {
             if (f.evaluate(jc)) {
                 result.add(jc);
             }
@@ -499,8 +489,7 @@ public class HeapWalker {
         int c = name.lastIndexOf('.');
         if (c >= 0) {
             return "**." + name.substring(c + 1);
-        }
-        else {
+        } else {
             return name;
         }
     }
@@ -517,106 +506,99 @@ public class HeapWalker {
 
     private static class HeapIterator implements Iterator<Instance> {
 
-    	private final RefSet visited;
-    	private final Set<JavaClass> classFilter;
-    	private final PathStep[] steps;
-    	private final Iterator<Instance> walker;
-    	private Iterator<Instance> pathWalker;
-    	private Instance next;
+        private final RefSet visited;
+        private final Set<JavaClass> classFilter;
+        private final PathStep[] steps;
+        private final Iterator<Instance> walker;
+        private Iterator<Instance> pathWalker;
+        private Instance next;
 
+        public HeapIterator(Heap heap, String path, boolean strict) {
+            this.visited = strict ? new RefSet() : null;
 
-    	public HeapIterator(Heap heap, String path, boolean strict) {
-    		this.visited = strict ? new RefSet() : null;
+            steps = HeapPath.parsePath(path, false);
+            if (steps[0] instanceof TypeFilterStep) {
+                TypeFilterStep filterStep = (TypeFilterStep) steps[0];
+                classFilter = new HashSet<JavaClass>(filterStep.filter(heap.getAllClasses()));
+            } else if (steps[0] instanceof ArrayIndexStep) {
+                Set<JavaClass> arrays = new HashSet<JavaClass>();
+                for (JavaClass jc : heap.getAllClasses()) {
+                    if (jc.isArray()) {
+                        arrays.add(jc);
+                    }
+                }
+                classFilter = arrays;
+            } else if (steps[0] instanceof FieldStep) {
+                FieldStep fieldStep = (FieldStep) steps[0];
+                if (fieldStep.getFieldName() != null) {
+                    Set<JavaClass> types = new HashSet<JavaClass>();
+                    for (JavaClass jc : heap.getAllClasses()) {
+                        if (hasField(jc, fieldStep.getFieldName())) {
+                            types.add(jc);
+                        }
+                    }
+                    classFilter = types;
+                } else {
+                    // no idea
+                    classFilter = null;
+                }
+            } else {
+                classFilter = null;
+            }
+            walker = heap.getAllInstancesIterator();
+        }
 
-    		steps = HeapPath.parsePath(path, false);
-    		if (steps[0] instanceof TypeFilterStep) {
-    			TypeFilterStep filterStep = (TypeFilterStep) steps[0];
-    			classFilter = new HashSet<JavaClass>(filterStep.filter(heap.getAllClasses()));
-    		}
-    		else if (steps[0] instanceof ArrayIndexStep) {
-    			Set<JavaClass> arrays = new HashSet<JavaClass>();
-    			for(JavaClass jc: heap.getAllClasses()) {
-    				if (jc.isArray()) {
-    					arrays.add(jc);
-    				}
-    			}
-    			classFilter = arrays;
-    		}
-    		else if (steps[0] instanceof FieldStep) {
-    			FieldStep fieldStep = (FieldStep) steps[0];
-    			if (fieldStep.getFieldName() != null) {
-        			Set<JavaClass> types = new HashSet<JavaClass>();
-        			for(JavaClass jc: heap.getAllClasses()) {
-        				if (hasField(jc, fieldStep.getFieldName())) {
-        					types.add(jc);
-        				}
-        			}
-    				classFilter = types;
-    			}
-    			else {
-    				// no idea
-    				classFilter = null;
-    			}
-    		}
-    		else {
-    			classFilter = null;
-    		}
-    		walker = heap.getAllInstancesIterator();
-    	}
+        @Override
+        public boolean hasNext() {
+            if (next == null) {
+                while (true) {
+                    Instance n;
+                    if (pathWalker != null && pathWalker.hasNext()) {
+                        n = pathWalker.next();
+                        if (visited != null) {
+                            if (visited.getAndSet(n.getInstanceId(), true)) {
+                                continue;
+                            }
+                        }
+                        next = n;
+                        break;
+                    }
+                    if (walker.hasNext()) {
+                        n = walker.next();
+                        if (classFilter != null && !classFilter.contains(n.getJavaClass())) {
+                            continue;
+                        } else {
+                            pathWalker = HeapPath.collect(n, steps).iterator();
+                        }
+                    } else {
+                        break;
+                    }
 
-		@Override
-		public boolean hasNext() {
-			if (next == null) {
-				while(true) {
-					Instance n;
-					if (pathWalker != null && pathWalker.hasNext()) {
-						n = pathWalker.next();
-						if (visited != null) {
-							if (visited.getAndSet(n.getInstanceId(), true)) {
-								continue;
-							}
-						}
-						next = n;
-						break;
-					}
-					if (walker.hasNext()) {
-						n = walker.next();
-						if (classFilter != null && !classFilter.contains(n.getJavaClass())) {
-							continue;
-						}
-						else {
-							pathWalker = HeapPath.collect(n, steps).iterator();
-						}
-					}
-					else {
-						break;
-					}
+                }
+            }
+            return next != null;
+        }
 
-				}
-			}
-			return next != null;
-		}
+        @Override
+        public Instance next() {
+            if (!hasNext()) {
+                throw new NoSuchElementException();
+            }
+            Instance result = next;
+            next = null;
+            return result;
+        }
 
-		@Override
-		public Instance next() {
-			if (!hasNext()) {
-				throw new NoSuchElementException();
-			}
-			Instance result = next;
-			next = null;
-			return result;
-		}
-
-		private boolean hasField(JavaClass jc, String fieldName) {
-			for(Field f: jc.getFields()) {
-				if (fieldName.equals(f.getName())) {
-					return true;
-				}
-			}
-			if (jc.getSuperClass() != null) {
-				return hasField(jc.getSuperClass(), fieldName);
-			}
-			return false;
-		}
+        private boolean hasField(JavaClass jc, String fieldName) {
+            for (Field f : jc.getFields()) {
+                if (fieldName.equals(f.getName())) {
+                    return true;
+                }
+            }
+            if (jc.getSuperClass() != null) {
+                return hasField(jc.getSuperClass(), fieldName);
+            }
+            return false;
+        }
     }
 }

@@ -13,5 +13,5 @@ public class HeapPathHelper {
             return m.pathSpec;
         }
         return null;
-    }    
+    }
 }
