@@ -21,6 +21,10 @@ function forEachThreadLocal(callback) {
     )
 }
 
+var threadLocal = [];
+
+forEachThreadLocal(function (t,r,v) { threadLocal.push({thread: t, ref: r, val: v});});
+
 function reportLock(rwlock) {
     var lockinfo = {};
     lockinfo.lock = rwlock;
@@ -43,10 +47,10 @@ function reportLock(rwlock) {
         lockinfo.readers.push(rwlock.sync.firstReader);
     }
 
-    forEachThreadLocal(
-        function(t, r, v) {
-            if (identical(r, rwlock.sync.readHolds) && v.count > 0) {
-                lockinfo.readers.push(t);
+	threadLocal.forEach(
+        function(tlv) {
+            if (identical(tlv.ref, rwlock.sync.readHolds) && tlv.val.count > 0) {
+                lockinfo.readers.push(tlv.thread);
             }
         }
     )
