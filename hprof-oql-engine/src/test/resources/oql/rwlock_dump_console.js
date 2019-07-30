@@ -21,6 +21,7 @@ function forEachThreadLocal(callback) {
     )
 }
 
+// cache list of thread locals to avoid scan for each thread
 var threadLocal = [];
 
 forEachThreadLocal(function (t,r,v) { threadLocal.push({thread: t, ref: r, val: v});});
@@ -77,4 +78,4 @@ length(map(
     reportLock
    ));
 
-""
+null
