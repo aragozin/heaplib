@@ -93,6 +93,7 @@ public class BitMapTest {
         assertThat(pbm.get(100)).isTrue();
 
         assertThat(pbm.seekOne(0)).isEqualTo(20);
+        assertThat(pbm.seekOne(20)).isEqualTo(20);
         assertThat(pbm.seekOne(21)).isEqualTo(60);
         assertThat(pbm.seekOne(41)).isEqualTo(60);
         assertThat(pbm.seekOne(61)).isEqualTo(80);
