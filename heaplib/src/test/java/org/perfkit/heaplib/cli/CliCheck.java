@@ -23,7 +23,9 @@ import java.lang.management.ManagementFactory;
 
 import org.junit.Assert;
 import org.junit.Assume;
+import org.junit.FixMethodOrder;
 import org.junit.Test;
+import org.junit.runners.MethodSorters;
 import org.perfkit.heaplib.cli.HeapCLI;
 
 /**
@@ -31,6 +33,7 @@ import org.perfkit.heaplib.cli.HeapCLI;
  *
  * @author Alexey Ragozin (alexey.ragozin@gmail.com)
  */
+@FixMethodOrder(MethodSorters.NAME_ASCENDING)
 public class CliCheck {
 
     private static String PID;
@@ -95,12 +98,14 @@ public class CliCheck {
 
     @Test
     public void histo_big_dump() {
-        exec("histo", "--noindex", "-d", "../dump1.live.hprof");
+        assume_64bit();
+        exec("histo", "--noindex", "-d", "../dumps/dump1.live.hprof");
     }
 
     @Test
     public void histo_big_dump2() {
-        exec("histo", "-d", "../dump1.live.hprof");
+        assume_64bit();
+        exec("histo", "-d", "../dumps/dump1.live.hprof", "-X");
     }
 
     @Test
@@ -140,13 +145,13 @@ public class CliCheck {
     @Test
     public void mask_bin_rex() {
         assume_64bit();
-        exec("mask", "--noindex", "-d", "../dump1.live.hprof", "-s", "(**.Thread).name", "-m", ".*serverUUID.*");
+        exec("mask", "--noindex", "-d", "../dumps/dump1.live.hprof", "-s", "(**.Thread).name", "-m", ".*serverUUID.*");
     }
 
     @Test
     public void mask_bin_rex_patch() {
         assume_64bit();
-        exec("mask", "--noindex", "--patch", "-d", "../dump1.live.hprof", "-s", "(**.Thread).name", "-m",
+        exec("mask", "--noindex", "--patch", "-d", "../dumps/dump1.live.hprof", "-s", "(**.Thread).name", "-m",
                 ".*serverUUID=([0-9a-z]+).*");
     }
 
@@ -177,6 +182,59 @@ public class CliCheck {
         exec("exec", "--noindex", "-X",
                 "-d", "../hprof-oql-engine/src/test/resources/rwdeadlock.hprof",
                 "-f", "../hprof-oql-engine/src/test/resources/oql/rwlock_dump_console.js");
+    }
+
+    @Test
+    public void exec_thread_dump() {
+        exec("exec", "--index", "../blcdump.hprof.hwcache", "-X",
+                "-d", "../dumps/blcdump.hprof",
+                "-f", "../hprof-oql-engine/src/test/resources/oql/thread_dump_console.js");
+    }
+
+    @Test
+    public void exec_test() {
+        String script = "length(map(\n" +
+                "    filter(\n" +
+                "        heap.roots(),\n" +
+                "        function(r) {\n" +
+                "            return root(r) && root(r).type == \"thread object\";\n" +
+                "        }\n" +
+                "    ),\n" +
+                "    function(t) {\n" +
+                "    \n" +
+                "        print(\"\\n#\" + t.id + \" \" + t.name.toString());\n" +
+                "        Java.type(\"java.util.Arrays\").asList(root(t).wrapped.getStackTrace()).forEach(function(e){ \n" +
+                "            print(\"  \" + e);\n" +
+                "        }); \n" +
+                "    }\n" +
+                "))\n" +
+                "\n" +
+                "\"\""
+                + "";
+
+        exec("exec", "--index", "../dumps/blcdump.hprof.hwcache", "-X",
+                "-d", "../dumps/blcdump.hprof",
+                "-e", script);
+    }
+
+    @Test
+    public void exec_test2() {
+        String script = "map(heap.finalizables(), function(f) {return f.value});"
+                + "";
+
+        exec("exec", "--index", "../dumps/blcdump.hprof.hwcache", "-X",
+                "-d", "../dumps/blcdump.hprof",
+                "-e", script);
+    }
+
+    @Test
+    public void exec_test3() {
+        String script = "map(heap.classes(), function(f) {return f});"
+                + "";
+
+        exec("exec", "--index", "../dumps/blcdump.hprof.hwcache", "-X",
+                "-d", "../dumps/blcdump.hprof",
+                "-e", script);
     }
 
     private void exec(String... cmd) {

@@ -76,7 +76,7 @@ public class HeapTest {
     @Before
     public void setUp() throws IOException, URISyntaxException {
         URL url = getClass().getResource("heap_dump.bin");
-        heap = HeapFactory.createHeap(new File(url.toURI()));
+        heap = HeapFactory2.createHeap(new File(url.toURI()), null);
     }
 
     @After
@@ -150,7 +150,7 @@ public class HeapTest {
     /**
      * Test of getJavaClassesByRegExp method, of class Heap.
      */
-	@Test
+    @Test
     public void testGetJavaClassesByRegExp() {
         String regexp = ".*Lock.*";
         Collection result = heap.getJavaClassesByRegExp(regexp);
@@ -212,7 +212,7 @@ public class HeapTest {
 
         while (instanceIt.hasNext()) {
             @SuppressWarnings("unused")
-			Instance i = (Instance) instanceIt.next();
+            Instance i = (Instance) instanceIt.next();
             instances++;
         }
         assertEquals(instances, heap.getSummary().getTotalLiveInstances());
@@ -239,8 +239,9 @@ public class HeapTest {
 
     @Test
     public void testHeapDumpLog() throws IOException, URISyntaxException {
-    	Assume.assumeFalse("Property order is not retained breaking the test", JavaVersionHelper.JAVA_11);
-        File outFile = File.createTempFile("heapDumpLog", ".txt");
+        Assume.assumeFalse("Property order is not retained breaking the test", JavaVersionHelper.JAVA_11);
+        new File("target/tmp").mkdirs();
+        File outFile = File.createTempFile("heapDumpLog", ".txt", new File("target/tmp"));
         URL url = getClass().getResource("heapDumpLog.txt");
         File goledFile = new File(url.toURI());
         OutputStream outs = new FileOutputStream(outFile);
@@ -356,12 +357,12 @@ public class HeapTest {
 
     @Test
     public void testPrimitiveArrayLookup() {
-    	heap.getJavaClassByName("char[]");
+        heap.getJavaClassByName("char[]");
     }
 
     @SuppressWarnings("resource")
-    private void compareTextFiles(File goledFile, File outFile) throws IOException {
-        InputStreamReader goldenIsr = new InputStreamReader(new FileInputStream(goledFile), "UTF-8");
+    private void compareTextFiles(File goldenFile, File outFile) throws IOException {
+        InputStreamReader goldenIsr = new InputStreamReader(new FileInputStream(goldenFile), "UTF-8");
         LineNumberReader goldenReader = new LineNumberReader(goldenIsr);
         InputStreamReader isr = new InputStreamReader(new FileInputStream(outFile), "UTF-8");
         LineNumberReader reader = new LineNumberReader(isr);
@@ -372,6 +373,6 @@ public class HeapTest {
             goldenLine = goldenReader.readLine();
             line = reader.readLine();
         }
-        assertEquals("File " + goledFile.getAbsolutePath() + " and " + outFile.getAbsolutePath() + " differs on line " + goldenReader.getLineNumber(), goldenLine, line);
+        assertEquals("File " + goldenFile.getAbsolutePath() + " and " + outFile.getAbsolutePath() + " differs on line " + goldenReader.getLineNumber(), goldenLine, line);
     }
 }

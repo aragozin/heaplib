@@ -12,6 +12,7 @@ import org.junit.Test;
 import org.netbeans.lib.profiler.heap.FieldValue;
 import org.netbeans.lib.profiler.heap.Heap;
 import org.netbeans.lib.profiler.heap.HeapFactory;
+import org.netbeans.lib.profiler.heap.HeapFactory2;
 import org.netbeans.lib.profiler.heap.Instance;
 import org.netbeans.lib.profiler.heap.JavaClass;
 import org.netbeans.lib.profiler.heap.ObjectArrayInstance;
@@ -79,7 +80,7 @@ public class MultiPassCollectorExample {
     @Test
     public void check2() throws FileNotFoundException, IOException {
         String dumppath = "src/test/resources/org/netbeans/lib/profiler/heap/heap_dump.bin";
-        Heap heap = HeapFactory.createHeap(new File(dumppath));
+        Heap heap = HeapFactory2.createHeap(new File(dumppath), null);
         printPathsForIntegers(heap);
     }
 

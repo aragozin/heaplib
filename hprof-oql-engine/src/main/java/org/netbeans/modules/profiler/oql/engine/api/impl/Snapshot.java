@@ -317,7 +317,7 @@ public class Snapshot {
 
     public Iterator getFinalizerObjects() {
         JavaClass clazz = findClass("java.lang.ref.Finalizer"); // NOI18N
-        Instance queue = ((ObjectFieldValue) clazz.getValueOfStaticField("queue")).getInstance(); // NOI18N
+        Instance queue = (Instance) clazz.getValueOfStaticField("queue"); // NOI18N
         ObjectFieldValue headFld = (ObjectFieldValue) queue.getValueOfField("head"); // NOI18N
 
         List finalizables = new ArrayList();

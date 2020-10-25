@@ -26,7 +26,7 @@ public class BaseHeap_WithHprofHeap_Test extends BaseHeapTest {
 
     @Before
     public void initHeap() throws FileNotFoundException, IOException {
-        heap = HeapFactory.createHeap(HeapDumpProcuder.getHeapDump());
+        heap = HeapFactory2.createHeap(HeapDumpProcuder.getHeapDump(), null);
     }
 
     @Override
