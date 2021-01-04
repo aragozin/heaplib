@@ -1,6 +1,5 @@
-package org.gridkit.jvmtool.util;
 /**
- * Copyright 2014 Alexey Ragozin
+ * Copyright 2021 Alexey Ragozin
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,19 +13,22 @@ package org.gridkit.jvmtool.util;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.gridkit.jvmtool.heapdump;
 
+import org.netbeans.lib.profiler.heap.FieldValue;
+import org.netbeans.lib.profiler.heap.Instance;
+import org.netbeans.lib.profiler.heap.PrimitiveArrayInstance;
 
 /**
- * Minimal API for growable array of 64 bit integers.
+ * Function can be used as a terminal step in
+ * @author Alexey Ragozin (alexey.ragozin@gmail.com)
  *
- * @author Alexey Ragozin (alexey.ragozin@db.com)
  */
-interface LongArray {
+interface InstanceFunction {
 
-    public long get(long n);
-    public long seekNext(long start);
-    public void set(long n, long value);
+    public Object apply(Instance i);
 
-    public void clear();
+    public Object applyToField(Instance i, FieldValue fv);
 
+    public Object applyToArray(PrimitiveArrayInstance array, int index);
 }

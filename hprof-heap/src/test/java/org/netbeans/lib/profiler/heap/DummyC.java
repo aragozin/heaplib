@@ -31,7 +31,7 @@ public class DummyC {
     long[] long_values = {Long.MIN_VALUE, Long.MAX_VALUE};
     float[] float_values = {Float.MIN_VALUE, Float.NaN, Float.MAX_VALUE};
     double[] double_values = {Double.MIN_VALUE, Double.NaN, Double.MAX_VALUE};
-    
+
     public static class Struct {
 
         boolean trueField = true;
@@ -52,7 +52,7 @@ public class DummyC {
         Integer intBoxedField = 0x66666666;
         Long longBoxedField = 0x6666666666l;
         Float floatBoxedField = 0.1f;
-        Double doubleBoxedField = -0.2;
+        Double doubleBoxedField = -1.2;
 
         String textField = "this is struct";
     }

@@ -207,20 +207,27 @@ public class HeapWalker {
      */
     @SuppressWarnings("unchecked")
     public static <T> T valueOf(Instance obj, String pathSpec) {
-        PathStep[] steps = HeapPath.parsePath(pathSpec, true);
+        PathStep[] steps = HeapPathParser.parsePath(pathSpec, true);
+        InstanceFunction func = null;
+        if (isTailingFunction(steps)) {
+            func = ((FunctionStep)steps[steps.length - 1]).func;
+            steps = Arrays.copyOf(steps, steps.length - 1);
+        } else {
+            func = ValueOfFunc.INSTANCE;
+        }
         if (steps.length > 0 && steps[steps.length - 1] instanceof FieldStep) {
             PathStep[] shortPath = Arrays.copyOf(steps, steps.length - 1);
             FieldStep lastStep = (FieldStep) steps[steps.length - 1];
             String fieldName = lastStep.getFieldName();
-            for (Instance i : HeapPath.collect(obj, shortPath)) {
+            for (Instance i : collect(obj, shortPath)) {
                 for (FieldValue fv : i.getFieldValues()) {
                     if ((fieldName == null && (!fv.getField().isStatic()))
                             || (fv.getField().getName().equals(fieldName))) {
                         if (fv instanceof ObjectFieldValue) {
-                            return valueOf(((ObjectFieldValue) fv).getInstance());
+                            return (T) func.apply(((ObjectFieldValue) fv).getInstance());
                         } else {
                             // have to use this as private package API is used behind scene
-                            return (T) i.getValueOfField(fv.getField().getName());
+                            return (T) func.applyToField(i, fv);
                         }
                     }
                 }
@@ -229,35 +236,27 @@ public class HeapWalker {
         } else if (steps.length > 0 && steps[steps.length - 1] instanceof ArrayIndexStep) {
             PathStep[] shortPath = Arrays.copyOf(steps, steps.length - 1);
             ArrayIndexStep lastStep = (ArrayIndexStep) steps[steps.length - 1];
-            for (Instance i : HeapPath.collect(obj, shortPath)) {
+            for (Instance i : collect(obj, shortPath)) {
                 if (i instanceof PrimitiveArrayInstance) {
-                    Object array = valueOf(i);
-                    if (array != null) {
-                        int len = Array.getLength(array);
-                        int n = lastStep.getIndex();
-                        if (n < 0) {
-                            n = 0;
-                        }
-                        if (n < len) {
-                            return (T) Array.get(array, n);
-                        } else {
-                            return null;
-                        }
-                    }
+                    return (T) func.applyToArray((PrimitiveArrayInstance) i, lastStep.getIndex());
                 } else {
-                    for (Instance x : HeapPath.collect(i, new PathStep[] { lastStep })) {
-                        return valueOf(x);
+                    for (Instance x : collect(i, new PathStep[] { lastStep })) {
+                        return (T) func.apply(x);
                     }
                 }
             }
             return null;
 
         } else {
-            for (Instance i : HeapPath.collect(obj, steps)) {
-                return valueOf(i);
+            for (Instance i : collect(obj, steps)) {
+                return (T) func.apply(i);
             }
             return null;
         }
+    }
+
+    private static boolean isTailingFunction(PathStep[] steps) {
+        return steps.length > 0 && (steps[steps.length - 1] instanceof FunctionStep);
     }
 
     public static String stringValue(Instance obj) {
@@ -411,7 +410,7 @@ public class HeapWalker {
     }
 
     public static Iterable<Instance> walk(Instance root, String path) {
-        return HeapPath.collect(root, HeapPath.parsePath(path, true));
+        return collect(root, HeapPathParser.parsePath(path, true));
     }
 
     public static Instance walkFirst(Instance root, String path) {
@@ -424,7 +423,7 @@ public class HeapWalker {
     }
 
     public static String explainPath(Instance root, String path) {
-        PathStep[] chain = HeapPath.parsePath(path, true);
+        PathStep[] chain = HeapPathParser.parsePath(path, true);
         StringBuilder sb = new StringBuilder();
         Instance o = root;
         for (int i = 0; i != chain.length; ++i) {
@@ -450,7 +449,7 @@ public class HeapWalker {
     }
 
     public static void validateHeapPath(String path) {
-        HeapPath.parsePath(path, true);
+        HeapPathParser.parsePath(path, true);
     }
 
     @SuppressWarnings("unused")
@@ -470,7 +469,7 @@ public class HeapWalker {
     }
 
     public static Set<JavaClass> filterTypes(String filter, Iterable<JavaClass> types) {
-        PathStep[] steps = HeapPath.parsePath("(" + filter + ")", true);
+        PathStep[] steps = HeapPathParser.parsePath("(" + filter + ")", true);
         if (steps.length != 1 || !(steps[0] instanceof TypeFilterStep)) {
             throw new IllegalArgumentException("Bad type filter: " + filter);
         }
@@ -492,6 +491,68 @@ public class HeapWalker {
         } else {
             return name;
         }
+    }
+
+    static Set<Instance> collect(Instance instance, PathStep[] steps) {
+
+        if (isTailingFunction(steps)) {
+            throw new IllegalArgumentException("Instance function is not allowed. Path: " + steps.toString());
+        }
+
+        Set<Instance> active = new HashSet<Instance>();
+        Set<Instance> next = new HashSet<Instance>();
+        active.add(instance);
+
+        for(PathStep step: steps) {
+            for(Instance i: active) {
+                Iterator<Instance> it = step.walk(i);
+                while(it.hasNext()) {
+                    Instance sub = it.next();
+                    if (sub != null) {
+                        next.add(sub);
+                    }
+                }
+            }
+            // swap buffers
+            active.clear();
+            Set<Instance> s = active;
+            active = next;
+            next = s;
+            if (active.isEmpty()) {
+                return active;
+            }
+        }
+
+        return active;
+    }
+
+    static Set<Move> track(Instance instance, PathStep[] steps) {
+
+        Set<Move> active = new HashSet<Move>();
+        Set<Move> next = new HashSet<Move>();
+        active.add(new Move("", instance));
+
+        for(PathStep step: steps) {
+            for(Move i: active) {
+                Iterator<Move> it = step.track(i.instance);
+                while(it.hasNext()) {
+                    Move sub = it.next();
+                    if (sub.instance != null) {
+                        next.add(new Move(i.pathSpec + sub.pathSpec, sub.instance));
+                    }
+                }
+            }
+            // swap buffers
+            active.clear();
+            Set<Move> s = active;
+            active = next;
+            next = s;
+            if (active.isEmpty()) {
+                return active;
+            }
+        }
+
+        return active;
     }
 
     private interface InstanceConverter {
@@ -516,7 +577,7 @@ public class HeapWalker {
         public HeapIterator(Heap heap, String path, boolean strict) {
             this.visited = strict ? new RefSet() : null;
 
-            steps = HeapPath.parsePath(path, false);
+            steps = HeapPathParser.parsePath(path, false);
             if (steps[0] instanceof TypeFilterStep) {
                 TypeFilterStep filterStep = (TypeFilterStep) steps[0];
                 classFilter = new HashSet<JavaClass>(filterStep.filter(heap.getAllClasses()));
@@ -568,7 +629,7 @@ public class HeapWalker {
                         if (classFilter != null && !classFilter.contains(n.getJavaClass())) {
                             continue;
                         } else {
-                            pathWalker = HeapPath.collect(n, steps).iterator();
+                            pathWalker = collect(n, steps).iterator();
                         }
                     } else {
                         break;

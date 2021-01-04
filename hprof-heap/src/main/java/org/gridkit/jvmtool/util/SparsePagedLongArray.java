@@ -23,32 +23,34 @@ import java.util.TreeMap;
 
 class SparsePagedLongArray implements LongArray {
 
-	private final static int PAGE_BITS = 10;
-	private final static int PAGE_MASK = ~(-1 << PAGE_BITS);
-	private final static int PAGE_SIZE = 1 << PAGE_BITS;
+    private final static int PAGE_BITS = 10;
+    private final static int PAGE_MASK = ~(-1 << PAGE_BITS);
+    private final static int PAGE_SIZE = 1 << PAGE_BITS;
 
-	public final static long NULL_VALUE = 0;
+    public final static long NULL_VALUE = 0;
 
-	protected long lastIndex = -1;
-	// should use long page indexes, some OSes tend to use high memory regions
-	protected SortedMap<Long, long[]> pages = new TreeMap<Long, long[]>();
+    protected long lastIndex = -1;
+    // should use long page indexes, some OSes tend to use high memory regions
+    protected SortedMap<Long, long[]> pages = new TreeMap<Long, long[]>();
 
 
+    @Override
     public long get(long n) {
         if (n > lastIndex) {
             return NULL_VALUE;
         }
-		long bi = n >>> PAGE_BITS;
-		if (bi < 0) {
-		    throw new ArrayIndexOutOfBoundsException("" + bi);
-		}
-		long[] page = getPageForRead(bi);
-		if (page == null) {
-			return NULL_VALUE;
-		}
-		return page[(int) (n & PAGE_MASK)];
-	}
+        long bi = n >>> PAGE_BITS;
+        if (bi < 0) {
+            throw new ArrayIndexOutOfBoundsException("" + bi);
+        }
+        long[] page = getPageForRead(bi);
+        if (page == null) {
+            return NULL_VALUE;
+        }
+        return page[(int) (n & PAGE_MASK)];
+    }
 
+    @Override
     public long seekNext(long start) {
         long startPage = start >> PAGE_BITS;
         SortedMap<Long, long[]> pages = this.pages.tailMap(startPage);
@@ -66,17 +68,18 @@ class SparsePagedLongArray implements LongArray {
         return -1;
     }
 
+    @Override
     public void set(long n, long value) {
-		lastIndex = Math.max(lastIndex, n);
-		long bi = n >>> PAGE_BITS;
-		long[] page = value == NULL_VALUE ? getPageForRead(bi) : getPageForWrite(bi);
-		if (page == null && value == NULL_VALUE) {
-		    if (value == NULL_VALUE) {
-		        return;
-		    }
-		}
-		page[(int) (n & PAGE_MASK)] = value;
-	}
+        lastIndex = Math.max(lastIndex, n);
+        long bi = n >>> PAGE_BITS;
+        long[] page = value == NULL_VALUE ? getPageForRead(bi) : getPageForWrite(bi);
+        if (page == null && value == NULL_VALUE) {
+            if (value == NULL_VALUE) {
+                return;
+            }
+        }
+        page[(int) (n & PAGE_MASK)] = value;
+    }
 
     protected long[] getPageForRead(long bi) {
         long[] page = pages.get(bi);
@@ -89,7 +92,12 @@ class SparsePagedLongArray implements LongArray {
             page = new long[PAGE_SIZE];
             pages.put(bi, page);
             Arrays.fill(page, NULL_VALUE);
-        }        
+        }
         return page;
+    }
+
+    @Override
+    public void clear() {
+        pages.clear();
     }
 }

@@ -16,26 +16,21 @@
 package org.gridkit.jvmtool.heapdump;
 
 import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Set;
 
-import org.gridkit.jvmtool.heapdump.PathStep.Move;
-import org.netbeans.lib.profiler.heap.Instance;
-
-class HeapPath {
+class HeapPathParser {
 
     static PathStep[] parsePath(String path, boolean strictPath) {
 
         List<PathStep> result = new ArrayList<PathStep>();
 
-        if (path.endsWith(".")) {
+        if (path.endsWith(".") && path.length() > 1) {
             throw new IllegalArgumentException("Invalid path spec: " + path);
         }
 
         boolean fieldRequired = false;
         boolean dotAllowed = false;
+
         int n = 0;
         while(n < path.length()) {
             String token = token(n, path);
@@ -86,11 +81,11 @@ class HeapPath {
                         // try to parse predicate
                         int c = index.lastIndexOf('=');
                         if (c > 0) {
-                        	boolean inv = false;
-                        	String subpath = index.substring(0, c);
+                            boolean inv = false;
+                            String subpath = index.substring(0, c);
                             if (subpath.endsWith("!")) {
-                            	inv = true;
-                            	subpath = subpath.substring(0, subpath.length() - 1);
+                                inv = true;
+                                subpath = subpath.substring(0, subpath.length() - 1);
                             }
                             String matcher = index.substring(c + 1, index.length());
                             PathStep[] steps = parsePath(subpath, true);
@@ -111,6 +106,18 @@ class HeapPath {
                 if (token.charAt(0) == '?') {
                     if ("?entrySet".equals(token)) {
                         result.add(new MapEntrySetStep());
+                    }
+                    else if (ClassNameFunc.SIMPLE_NAME.func.equals(token.substring(1))) {
+                        if (!lastIsInstance(result)) {
+                            throw new IllegalArgumentException("Invalid path spec: " + path + " " + ClassNameFunc.SIMPLE_NAME + " is not applicable for values");
+                        }
+                        appendFunction(result, ClassNameFunc.SIMPLE_NAME);
+                    }
+                    else if (ClassNameFunc.FQ_NAME.func.equals(token.substring(1))) {
+                        if (!lastIsInstance(result)) {
+                            throw new IllegalArgumentException("Invalid path spec: " + path + " " + ClassNameFunc.SIMPLE_NAME + " is not applicable for values");
+                        }
+                        appendFunction(result, ClassNameFunc.FQ_NAME);
                     }
                     else {
                         throw new IllegalArgumentException("Invalid path spec: " + path);
@@ -143,12 +150,20 @@ class HeapPath {
         return result.toArray(new PathStep[result.size()]);
     }
 
-    private static boolean lastIsAsterisk(List<PathStep> result) {
-        if (result.isEmpty()) {
+    private static void appendFunction(List<PathStep> result, InstanceFunction func) {
+        result.add(new FunctionStep(func));
+    }
+
+    private static boolean lastIsInstance(List<PathStep> path) {
+        return path.isEmpty() || !(path.get(path.size() - 1) instanceof FunctionStep);
+    }
+
+    private static boolean lastIsAsterisk(List<PathStep> path) {
+        if (path.isEmpty()) {
             return false;
         }
         else {
-            PathStep step = result.get(result.size() - 1);
+            PathStep step = path.get(path.size() - 1);
             if (step instanceof FieldStep && ((FieldStep)step).getFieldName() == null) {
                 return true;
             }
@@ -251,63 +266,5 @@ class HeapPath {
             ++n;
         }
         throw new IllegalArgumentException("Invalid path spec: " + path);
-    }
-
-    static Set<Instance> collect(Instance instance, PathStep[] steps) {
-
-        Set<Instance> active = new HashSet<Instance>();
-        Set<Instance> next = new HashSet<Instance>();
-        active.add(instance);
-
-        for(PathStep step: steps) {
-            for(Instance i: active) {
-                Iterator<Instance> it = step.walk(i);
-                while(it.hasNext()) {
-                    Instance sub = it.next();
-                    if (sub != null) {
-                        next.add(sub);
-                    }
-                }
-            }
-            // swap buffers
-            active.clear();
-            Set<Instance> s = active;
-            active = next;
-            next = s;
-            if (active.isEmpty()) {
-                return active;
-            }
-        }
-
-        return active;
-    }
-
-    static Set<Move> track(Instance instance, PathStep[] steps) {
-
-        Set<Move> active = new HashSet<Move>();
-        Set<Move> next = new HashSet<Move>();
-        active.add(new Move("", instance));
-
-        for(PathStep step: steps) {
-            for(Move i: active) {
-                Iterator<Move> it = step.track(i.instance);
-                while(it.hasNext()) {
-                    Move sub = it.next();
-                    if (sub.instance != null) {
-                        next.add(new Move(i.pathSpec + sub.pathSpec, sub.instance));
-                    }
-                }
-            }
-            // swap buffers
-            active.clear();
-            Set<Move> s = active;
-            active = next;
-            next = s;
-            if (active.isEmpty()) {
-                return active;
-            }
-        }
-
-        return active;
     }
 }

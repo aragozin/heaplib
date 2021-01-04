@@ -15,9 +15,11 @@
  */
 package org.gridkit.jvmtool.heapdump;
 
+import java.util.Iterator;
+
 import org.gridkit.jvmtool.util.PagedBitMap;
-
-
+import org.netbeans.lib.profiler.heap.Heap;
+import org.netbeans.lib.profiler.heap.Instance;
 
 /**
  * This is thin wrapper around {@link PagedBitMap}
@@ -74,5 +76,15 @@ public class RefSet extends PagedBitMap {
     @Override
     public void sub(PagedBitMap that) {
         super.sub(that);
+    }
+
+    public Iterable<Instance> asInstances(final Heap heap) {
+        return new Iterable<Instance>() {
+
+            @Override
+            public Iterator<Instance> iterator() {
+                return new InstanceIterator(heap, ones().iterator());
+            }
+        };
     }
 }

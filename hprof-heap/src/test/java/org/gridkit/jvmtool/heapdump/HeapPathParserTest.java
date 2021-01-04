@@ -67,6 +67,14 @@ public class HeapPathParserTest {
         addCase(result, "[*](MyObject)", false, "[[*], (MyObject)]");
         addCase(result, "[*](+MyObject1|+MyObject2)", true, "[[*], (+MyObject1|+MyObject2)]");
         addCase(result, "[*](+MyObject1|+MyObject2)", false, "[[*], (+MyObject1|+MyObject2)]");
+        addCase(result, "(**)", true, "[(**)]");
+        addCase(result, "(**)", false, "[(**)]");
+//        addCase(result, ".", true, "[]");
+//        addCase(result, ".", false, "[]");
+        addCase(result, "?className", true, "[?className]");
+        addCase(result, "?className", false, "[?className]");
+        addCase(result, "?simpleClassName", true, "[?simpleClassName]");
+        addCase(result, "?simpleClassName", false, "[?simpleClassName]");
 
         return result;
     }
@@ -92,13 +100,13 @@ public class HeapPathParserTest {
 
         if (expected != null) {
             String text;
-            text = Arrays.toString(HeapPath.parsePath(expr, strictPath));
+            text = Arrays.toString(HeapPathParser.parsePath(expr, strictPath));
             System.out.println(text);
             assertThat(text).isEqualTo(expected);
         }
         else {
             try {
-                System.out.println(Arrays.toString(HeapPath.parsePath(expr, strictPath)));
+                System.out.println(Arrays.toString(HeapPathParser.parsePath(expr, strictPath)));
                 Assert.fail("Exception expected");
             }
             catch(IllegalArgumentException e) {

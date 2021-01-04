@@ -29,7 +29,7 @@ import java.util.NoSuchElementException;
 public class PagedBitMap {
 
     private LongArray array;
-    
+
     public PagedBitMap() {
         this(false);
     }
@@ -186,7 +186,7 @@ public class PagedBitMap {
             }
         };
     }
-    
+
     @SuppressWarnings("unused")
     public long countOnes() {
         long n = 0;
@@ -194,6 +194,10 @@ public class PagedBitMap {
             ++n;
         }
         return n;
+    }
+
+    public void clear() {
+        array.clear();
     }
 
     protected static class SeekerIterator implements Iterator<Long> {
@@ -225,5 +229,5 @@ public class PagedBitMap {
         public void remove() {
             throw new UnsupportedOperationException();
         }
-    }    
+    }
 }

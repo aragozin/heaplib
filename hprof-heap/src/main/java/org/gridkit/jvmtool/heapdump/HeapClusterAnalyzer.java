@@ -71,13 +71,13 @@ public class HeapClusterAnalyzer {
     }
 
     public RefSet getSharedRefSet() {
-    	return sharedRefs;
+        return sharedRefs;
     }
 
     public RefSet getIgnoredRefSet() {
-    	return ignoreRefs;
+        return ignoreRefs;
     }
-    
+
     public HeapHistogram getSharedSummary() {
         return sharedSummary;
     }
@@ -85,7 +85,7 @@ public class HeapClusterAnalyzer {
     public long getSharedErrorMargin() {
         return sharedErrorMargin;
     }
-    
+
     public void setSharedPathListener(PathListener listener) {
         this.sharedPathListener = listener;
     }
@@ -144,7 +144,15 @@ public class HeapClusterAnalyzer {
     }
 
     public void markShared(RefSet refs) {
-    	sharedRefs.add(refs);
+        sharedRefs.add(refs);
+    }
+
+    public void unmarkShared(long instanceId) {
+        sharedRefs.set(instanceId, false);
+    }
+
+    public void unmarkShared(RefSet refs) {
+        sharedRefs.sub(refs);
     }
 
     public void markIgnored(long instanceId) {
@@ -156,7 +164,7 @@ public class HeapClusterAnalyzer {
     }
 
     public void addEntryPoint(String heapPath) {
-        PathStep[] path = HeapPath.parsePath(heapPath, true);
+        PathStep[] path = HeapPathParser.parsePath(heapPath, true);
         if (path.length > 0 && path[0] instanceof TypeFilterStep) {
             interestingTypes.add((TypeFilterStep) path[0]);
         }
@@ -168,7 +176,7 @@ public class HeapClusterAnalyzer {
     }
 
     public void blackList(String pathSuffix) {
-        PathStep[] path = HeapPath.parsePath(pathSuffix, true);
+        PathStep[] path = HeapPathParser.parsePath(pathSuffix, true);
         if (path.length == 1 && path[0] instanceof TypeFilterStep) {
             blacklistedTypes.add((TypeFilterStep) path[0]);
         }
@@ -189,7 +197,7 @@ public class HeapClusterAnalyzer {
             if (!keepClusterMembership) {
                 last.objects = null;
             }
-            last = null; 
+            last = null;
         }
         if (rootClasses.isEmpty()) {
             throw new IllegalStateException("Interesting types are not defined");
@@ -239,7 +247,7 @@ public class HeapClusterAnalyzer {
             for(EntryPoint ep: entryPoints) {
                 path.setLength(0);
                 path.append("(" + shortName(details.root.getJavaClass().getName()) + ")");
-                for(Move i: HeapPath.track(details.root, ep.locator)) {
+                for(Move i: HeapWalker.track(details.root, ep.locator)) {
                     path.append(i.pathSpec);
                     walk(details, i.instance, path, 0, false, false);
                 }
@@ -247,7 +255,7 @@ public class HeapClusterAnalyzer {
         }
         else {
             for(EntryPoint ep: entryPoints) {
-                for(Instance i: HeapPath.collect(details.root, ep.locator)) {
+                for(Instance i: HeapWalker.collect(details.root, ep.locator)) {
                     widthWalk(details, i, false);
                 }
             }
@@ -261,7 +269,7 @@ public class HeapClusterAnalyzer {
         for(EntryPoint ep: entryPoints) {
             path.setLength(0);
             path.append(ep.path);
-            for(Instance i: HeapPath.collect(details.root, ep.locator)) {
+            for(Instance i: HeapWalker.collect(details.root, ep.locator)) {
                 walk(details, i, path, 0, true, false);
             }
         }
@@ -273,7 +281,7 @@ public class HeapClusterAnalyzer {
         for(EntryPoint ep: entryPoints) {
             path.setLength(0);
             path.append(ep.path);
-            for(Instance i: HeapPath.collect(details.root, ep.locator)) {
+            for(Instance i: HeapWalker.collect(details.root, ep.locator)) {
                 walk(details, i, path, 0, false, true);
             }
         }
@@ -328,14 +336,14 @@ public class HeapClusterAnalyzer {
                                 path.append('[').append(n).append(']');
                                 Instance inst = null;
                                 try {
-					inst = heap.getInstanceByID(ref);
+                    inst = heap.getInstanceByID(ref);
                                 }
                                 catch(IllegalInstanceIDException e) {
-					System.err.println("Missing instance #" + ref);
-					ignoreRefs.set(ref, true);
+                    System.err.println("Missing instance #" + ref);
+                    ignoreRefs.set(ref, true);
                                 }
                                 if (inst != null) {
-					walk(details, inst, path, depth + 1, reportShared, accountShared);
+                    walk(details, inst, path, depth + 1, reportShared, accountShared);
                                 }
                             }
                         }
@@ -355,12 +363,12 @@ public class HeapClusterAnalyzer {
                                 path.setLength(len);
                                 path.append('.').append(fieldName);
                                 try {
-					Instance val = of.getInstance();
-					walk(details, val, path, depth + 1, reportShared, accountShared);
+                    Instance val = of.getInstance();
+                    walk(details, val, path, depth + 1, reportShared, accountShared);
                                 }
                                 catch(IllegalInstanceIDException e) {
-					System.err.println("Missing instance #" + id);
-					ignoreRefs.set(id, true);
+                    System.err.println("Missing instance #" + id);
+                    ignoreRefs.set(id, true);
                                 }
                             }
                         }
@@ -404,28 +412,28 @@ public class HeapClusterAnalyzer {
                 try {
                     Instance i = heap.getInstanceByID(id);
                     if (i == null) {
-			ignoreRefs.set(id, true);
-			System.err.println("Missing instance #" + id);
-			continue;
+            ignoreRefs.set(id, true);
+            System.err.println("Missing instance #" + id);
+            continue;
                     }
                     if (blacklist.contains(i.getJavaClass().getName())) {
                         ignoreRefs.set(id, true);
                         continue;
                     }
-    
+
                     if (details.objects.getAndSet(id, true)) {
                         continue;
                     }
-                    
+
                     ++count;
-                    
+
                     @SuppressWarnings("unused")
                     String type = i.getJavaClass().getName();
-                    
+
                     if (!accountShared || sharedRefs.get(i.getInstanceId())) {
                         details.summary.accumulate(i);
                     }
-                    
+
                     if (i instanceof ObjectArrayInstance) {
                         ObjectArrayInstance array = (ObjectArrayInstance) i;
                         if (!isBlackListedArray(array.getJavaClass())) {
@@ -525,9 +533,9 @@ public class HeapClusterAnalyzer {
     public interface PathExpander {
 
         public Iterator<Instance> onPath(Instance root, String path, Instance shared);
-        
+
     }
-    
+
     protected static class Cluster implements ClusterDetails {
 
         Instance root;
